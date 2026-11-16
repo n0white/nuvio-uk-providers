@@ -436,31 +436,31 @@ function onSettings() {
     return [
         {
             type: 'header',
-            title: 'Налаштування Uakino',
+            label: 'Налаштування Uakino',
         },
         {
             type: 'info',
-            text: 'Якщо uakino.best блокує запити захистом Cloudflare (403), вкажіть дзеркало або cookie cf_clearance з браузера з відповідним User-Agent.',
+            label: 'uakino.best захищений Cloudflare (403). Щоб плагін працював, вкажіть дзеркало/проксі або cookie cf_clearance з браузера з тим самим User-Agent.',
         },
         {
             type: 'text',
             key: 'baseUrl',
             label: 'Базовий URL (дзеркало)',
-            default: DEFAULT_MAIN_URL,
+            defaultValue: DEFAULT_MAIN_URL,
             placeholder: DEFAULT_MAIN_URL,
         },
         {
             type: 'text',
             key: 'cookie',
             label: 'Cookie (cf_clearance=...)',
-            default: '',
+            defaultValue: '',
             placeholder: 'cf_clearance=...',
         },
         {
             type: 'text',
             key: 'userAgent',
             label: 'User-Agent',
-            default: MOBILE_USER_AGENT,
+            defaultValue: MOBILE_USER_AGENT,
             placeholder: MOBILE_USER_AGENT,
         },
     ];
