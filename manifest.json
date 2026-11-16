@@ -1,12 +1,12 @@
 {
   "name": "Nuvio UK Providers (Uakino & AniTube)",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scrapers": [
     {
       "id": "anitube",
       "name": "AniTube.in.ua",
       "description": "Аніме фільми та серіали українською (озвучення та субтитри) з anitube.in.ua.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
       "supportedTypes": [
         "movie",
@@ -30,7 +30,7 @@
       "id": "uakino",
       "name": "Uakino.best",
       "description": "Фільми, серіали, мультфільми та аніме в українському дубляжі з uakino.best (підтримує налаштування дзеркала / cf_clearance).",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
       "supportedTypes": [
         "movie",

@@ -1,6 +1,6 @@
 /**
  * uakino - Nuvio UK Provider (from cloudstream-extensions-uk)
- * Generated: 2026-11-16T23:13:04.574Z
+ * Generated: 2026-11-16T23:40:33.990Z
  */
 var __provider = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -672,9 +672,11 @@ var __provider = (() => {
   }
   function buildNuvioStream({
     providerName,
+    name,
     title,
     url,
     quality = "Auto",
+    language = "uk",
     headers = {},
     subtitles = [],
     type
@@ -684,12 +686,14 @@ var __provider = (() => {
     if (!cleanUrl || cleanUrl.includes("[object")) return null;
     const detectedType = type || (/\.m3u8(\?|$)/i.test(cleanUrl) || cleanUrl.includes("/hls/") ? "hls" : "mp4");
     const cleanQuality = ((_a = String(quality || "").match(/\b(2160p|4k|1080p|800p|720p|480p|360p)\b/i)) == null ? void 0 : _a[1]) || quality || "Auto";
+    const displayName = (name || title || providerName || "Stream").trim();
     const stream = {
-      name: providerName,
-      title: title || providerName,
+      name: displayName,
+      title: title || displayName,
+      provider: providerName,
       url: cleanUrl,
       quality: cleanQuality,
-      language: "uk",
+      language: language || "uk",
       type: detectedType
     };
     if (headers && Object.keys(headers).length > 0) {
@@ -898,12 +902,17 @@ var __provider = (() => {
           if (streamUrls.length === 0) return [];
           const subtitles = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
           const referer = selectPlayerReferer(normalized, `${cfg.baseUrl}/`);
+          const label = (sourceLabel || PROVIDER_NAME).trim();
+          const isSub = /субтитр/i.test(label);
+          const langLabel = isSub ? "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk" : subtitles.length > 0 ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431) \u2022 uk" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk";
           return streamUrls.map(
             (url) => buildNuvioStream({
               providerName: PROVIDER_NAME,
-              title: sourceLabel || PROVIDER_NAME,
+              name: label,
+              title: label,
               url,
               quality: "1080p",
+              language: langLabel,
               headers: referer ? { Referer: referer } : {},
               subtitles
             })
@@ -995,7 +1004,7 @@ var __provider = (() => {
             const targetEp = parseInt(episode, 10);
             const matching = playlistItems.filter((it) => it.epNum === targetEp);
             for (const item of matching) {
-              playersToResolve.push({ url: item.url, label: `${item.voice} \u2022 ${item.epName}` });
+              playersToResolve.push({ url: item.url, label: item.voice || PROVIDER_NAME });
             }
             if (playersToResolve.length === 0 && targetEp === 1) {
               for (const inlineUrl of extractInlinePlayerUrls($, cfg)) {

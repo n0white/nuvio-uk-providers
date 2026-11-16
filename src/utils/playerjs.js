@@ -236,9 +236,11 @@ export function resolvePlayerJsUrls(rawFile) {
  */
 export function buildNuvioStream({
     providerName,
+    name,
     title,
     url,
     quality = 'Auto',
+    language = 'uk',
     headers = {},
     subtitles = [],
     type,
@@ -248,13 +250,15 @@ export function buildNuvioStream({
 
     const detectedType = type || (/\.m3u8(\?|$)/i.test(cleanUrl) || cleanUrl.includes('/hls/') ? 'hls' : 'mp4');
     const cleanQuality = String(quality || '').match(/\b(2160p|4k|1080p|800p|720p|480p|360p)\b/i)?.[1] || quality || 'Auto';
+    const displayName = (name || title || providerName || 'Stream').trim();
 
     const stream = {
-        name: providerName,
-        title: title || providerName,
+        name: displayName,
+        title: title || displayName,
+        provider: providerName,
         url: cleanUrl,
         quality: cleanQuality,
-        language: 'uk',
+        language: language || 'uk',
         type: detectedType,
     };
 

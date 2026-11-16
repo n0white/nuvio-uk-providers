@@ -12,8 +12,8 @@ async function runCase(label, provider, args) {
         const streams = await provider.getStreams(...args);
         const ms = Date.now() - start;
         console.log(`\n[${label}] ${streams.length} stream(s) in ${ms} ms`);
-        for (const s of streams.slice(0, 5)) {
-            console.log(`  - ${s.title} | ${s.quality} | ${s.type} | ${s.url}`);
+        for (const s of streams.slice(0, 6)) {
+            console.log(`  - ${s.name} | ${s.quality} • ${s.language} | ${s.url}`);
             if (s.subtitles && s.subtitles.length > 0) {
                 console.log(`    subs: ${s.subtitles.map(sub => `${sub.name}: ${sub.url}`).join(', ')}`);
             }

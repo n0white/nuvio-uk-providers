@@ -33,10 +33,16 @@ function markForcedSubtitle(label, isForced) {
     return `${label} (форсовані)`;
 }
 
+function buildLanguageLabel(isDub, subtitles) {
+    const hasSubs = Array.isArray(subtitles) && subtitles.length > 0;
+    if (isDub === false) return 'Субтитри • uk';
+    return hasSubs ? 'Озвучення (+суб) • uk' : 'Озвучення • uk';
+}
+
 /**
  * Extracts stream + subtitles from ashdi.vip embed/vod URL.
  */
-export async function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride) {
+export async function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride, isDub = true) {
     const fixedUrl = ensureUrl(iframeUrl).replace('/embed/', '/vod/');
     if (!fixedUrl) return [];
 
@@ -58,13 +64,16 @@ export async function extractAshdi(iframeUrl, sourceLabel, providerName, referer
         subtitles = await fetchHlsSubtitles(fileUrl, { Referer: playReferer });
     }
 
+    const cleanSubs = distinctSubtitles(subtitles);
     const stream = buildNuvioStream({
         providerName,
-        title: `${sourceLabel} (Ashdi)`,
+        name: sourceLabel,
+        title: sourceLabel,
         url: fileUrl,
         quality: '1080p',
+        language: buildLanguageLabel(isDub, cleanSubs),
         headers: { Referer: playReferer },
-        subtitles: distinctSubtitles(subtitles),
+        subtitles: cleanSubs,
         type: 'hls',
     });
     return stream ? [stream] : [];
@@ -158,7 +167,7 @@ async function resolveMoonContent(contentUrl) {
 /**
  * Extracts stream(s) + subtitles from moonanime.art / moonanime.net iframe URL.
  */
-export async function extractMoon(iframeUrl, sourceLabel, providerName) {
+export async function extractMoon(iframeUrl, sourceLabel, providerName, isDub = true) {
     const cleanUrl = ensureUrl(iframeUrl)
         .replace(/[?&]player=[^&]*/g, '')
         .replace('?&', '?')
@@ -242,9 +251,11 @@ export async function extractMoon(iframeUrl, sourceLabel, providerName) {
             if (!qUrl) continue;
             const s = buildNuvioStream({
                 providerName,
-                title: `${sourceLabel} (Moon ${qLabel})`,
+                name: sourceLabel,
+                title: sourceLabel,
                 url: qUrl,
                 quality: qLabel,
+                language: buildLanguageLabel(isDub, subtitles),
                 headers: moonHeaders,
                 subtitles,
             });
@@ -258,9 +269,11 @@ export async function extractMoon(iframeUrl, sourceLabel, providerName) {
         if (finalUrl) {
             const s = buildNuvioStream({
                 providerName,
-                title: `${sourceLabel} (Moon)`,
+                name: sourceLabel,
+                title: sourceLabel,
                 url: finalUrl,
                 quality: '1080p',
+                language: buildLanguageLabel(isDub, subtitles),
                 headers: moonHeaders,
                 subtitles,
             });
@@ -318,7 +331,7 @@ function authorizeFenixUrl(url, mediaAccess) {
 /**
  * Extracts streams + subtitles from fenixplay.xyz embed URL.
  */
-export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName) {
+export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName, isDub = true) {
     const fixedUrl = ensureUrl(iframeUrl);
     if (!fixedUrl) return [];
 
@@ -368,12 +381,14 @@ export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, provid
         const authorized = authorizeFenixUrl(rawUrl, mediaAccess);
         if (!authorized || seenUrls.has(authorized)) return;
         seenUrls.add(authorized);
-        const title = label && label !== sourceLabel ? `${sourceLabel} — ${label} (Fenix)` : `${sourceLabel} (Fenix)`;
+        const title = label && label !== sourceLabel ? `${sourceLabel} — ${label}` : sourceLabel;
         const s = buildNuvioStream({
             providerName,
+            name: title,
             title,
             url: authorized,
             quality: '1080p',
+            language: buildLanguageLabel(isDub, subtitles),
             headers: { Referer: FENIX_REFERER },
             subtitles,
             type: 'hls',
@@ -392,7 +407,7 @@ export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, provid
 /**
  * Extracts quality streams + subtitles from csst.online / monstro.* embeds.
  */
-export async function extractCsst(iframeUrl, sourceLabel, providerName) {
+export async function extractCsst(iframeUrl, sourceLabel, providerName, isDub = true) {
     const fixedUrl = ensureUrl(iframeUrl);
     if (!fixedUrl) return [];
 
@@ -418,9 +433,11 @@ export async function extractCsst(iframeUrl, sourceLabel, providerName) {
         if (!/^https?:\/\//i.test(url)) continue;
         const s = buildNuvioStream({
             providerName,
-            title: `${sourceLabel} (${quality})`,
+            name: sourceLabel,
+            title: sourceLabel,
             url,
             quality,
+            language: buildLanguageLabel(isDub, subtitles),
             headers: { Referer: fixedUrl },
             subtitles,
         });

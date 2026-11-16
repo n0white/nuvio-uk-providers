@@ -1,6 +1,6 @@
 /**
  * anitube - Nuvio UK Provider (from cloudstream-extensions-uk)
- * Generated: 2026-11-16T23:13:04.547Z
+ * Generated: 2026-11-16T23:40:33.963Z
  */
 var __provider = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -740,9 +740,11 @@ var __provider = (() => {
   }
   function buildNuvioStream({
     providerName,
+    name,
     title,
     url,
     quality = "Auto",
+    language = "uk",
     headers = {},
     subtitles = [],
     type
@@ -752,12 +754,14 @@ var __provider = (() => {
     if (!cleanUrl || cleanUrl.includes("[object")) return null;
     const detectedType = type || (/\.m3u8(\?|$)/i.test(cleanUrl) || cleanUrl.includes("/hls/") ? "hls" : "mp4");
     const cleanQuality = ((_a = String(quality || "").match(/\b(2160p|4k|1080p|800p|720p|480p|360p)\b/i)) == null ? void 0 : _a[1]) || quality || "Auto";
+    const displayName = (name || title || providerName || "Stream").trim();
     const stream = {
-      name: providerName,
-      title: title || providerName,
+      name: displayName,
+      title: title || displayName,
+      provider: providerName,
       url: cleanUrl,
       quality: cleanQuality,
-      language: "uk",
+      language: language || "uk",
       type: detectedType
     };
     if (headers && Object.keys(headers).length > 0) {
@@ -800,7 +804,12 @@ var __provider = (() => {
     if (/forced|форс|напис/i.test(label)) return label;
     return `${label} (\u0444\u043E\u0440\u0441\u043E\u0432\u0430\u043D\u0456)`;
   }
-  function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride) {
+  function buildLanguageLabel(isDub, subtitles) {
+    const hasSubs = Array.isArray(subtitles) && subtitles.length > 0;
+    if (isDub === false) return "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk";
+    return hasSubs ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431) \u2022 uk" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk";
+  }
+  function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride, isDub = true) {
     return __async(this, null, function* () {
       const fixedUrl = ensureUrl(iframeUrl).replace("/embed/", "/vod/");
       if (!fixedUrl) return [];
@@ -818,13 +827,16 @@ var __provider = (() => {
       if (subtitles.length === 0 && fileUrl.includes(".m3u8")) {
         subtitles = yield fetchHlsSubtitles(fileUrl, { Referer: playReferer });
       }
+      const cleanSubs = distinctSubtitles(subtitles);
       const stream = buildNuvioStream({
         providerName,
-        title: `${sourceLabel} (Ashdi)`,
+        name: sourceLabel,
+        title: sourceLabel,
         url: fileUrl,
         quality: "1080p",
+        language: buildLanguageLabel(isDub, cleanSubs),
         headers: { Referer: playReferer },
-        subtitles: distinctSubtitles(subtitles),
+        subtitles: cleanSubs,
         type: "hls"
       });
       return stream ? [stream] : [];
@@ -913,7 +925,7 @@ var __provider = (() => {
       }
     });
   }
-  function extractMoon(iframeUrl, sourceLabel, providerName) {
+  function extractMoon(iframeUrl, sourceLabel, providerName, isDub = true) {
     return __async(this, null, function* () {
       const cleanUrl = ensureUrl(iframeUrl).replace(/[?&]player=[^&]*/g, "").replace("?&", "?").replace(/[?&]$/, "");
       if (!cleanUrl) return [];
@@ -988,9 +1000,11 @@ var __provider = (() => {
           if (!qUrl) continue;
           const s = buildNuvioStream({
             providerName,
-            title: `${sourceLabel} (Moon ${qLabel})`,
+            name: sourceLabel,
+            title: sourceLabel,
             url: qUrl,
             quality: qLabel,
+            language: buildLanguageLabel(isDub, subtitles),
             headers: moonHeaders,
             subtitles
           });
@@ -1004,9 +1018,11 @@ var __provider = (() => {
         if (finalUrl) {
           const s = buildNuvioStream({
             providerName,
-            title: `${sourceLabel} (Moon)`,
+            name: sourceLabel,
+            title: sourceLabel,
             url: finalUrl,
             quality: "1080p",
+            language: buildLanguageLabel(isDub, subtitles),
             headers: moonHeaders,
             subtitles
           });
@@ -1056,7 +1072,7 @@ var __provider = (() => {
     if (value.includes("token=")) return value;
     return value + (value.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(token);
   }
-  function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName) {
+  function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName, isDub = true) {
     return __async(this, null, function* () {
       const fixedUrl = ensureUrl(iframeUrl);
       if (!fixedUrl) return [];
@@ -1102,12 +1118,14 @@ var __provider = (() => {
         const authorized = authorizeFenixUrl(rawUrl, mediaAccess);
         if (!authorized || seenUrls.has(authorized)) return;
         seenUrls.add(authorized);
-        const title = label && label !== sourceLabel ? `${sourceLabel} \u2014 ${label} (Fenix)` : `${sourceLabel} (Fenix)`;
+        const title = label && label !== sourceLabel ? `${sourceLabel} \u2014 ${label}` : sourceLabel;
         const s = buildNuvioStream({
           providerName,
+          name: title,
           title,
           url: authorized,
           quality: "1080p",
+          language: buildLanguageLabel(isDub, subtitles),
           headers: { Referer: FENIX_REFERER },
           subtitles,
           type: "hls"
@@ -1121,7 +1139,7 @@ var __provider = (() => {
       return streams;
     });
   }
-  function extractCsst(iframeUrl, sourceLabel, providerName) {
+  function extractCsst(iframeUrl, sourceLabel, providerName, isDub = true) {
     return __async(this, null, function* () {
       const fixedUrl = ensureUrl(iframeUrl);
       if (!fixedUrl) return [];
@@ -1144,9 +1162,11 @@ var __provider = (() => {
         if (!/^https?:\/\//i.test(url)) continue;
         const s = buildNuvioStream({
           providerName,
-          title: `${sourceLabel} (${quality})`,
+          name: sourceLabel,
+          title: sourceLabel,
           url,
           quality,
+          language: buildLanguageLabel(isDub, subtitles),
           headers: { Referer: fixedUrl },
           subtitles
         });
@@ -1326,30 +1346,50 @@ var __provider = (() => {
         });
         return items;
       }
+      function cleanPlayerName(raw) {
+        const cleaned = String(raw || "").replace(/^\s*плеєр\s+/i, "").trim();
+        if (!cleaned) return "\u041F\u043B\u0435\u0454\u0440";
+        if (/^(ashdi|ahdi)$/i.test(cleaned)) return "Ashdi";
+        if (/^moon$/i.test(cleaned)) return "Moon";
+        if (/^fenix$/i.test(cleaned)) return "Fenix";
+        if (/^trg$/i.test(cleaned)) return "Tortuga";
+        return cleaned;
+      }
+      function formatItemLabel(item) {
+        const player = cleanPlayerName(item.playerName);
+        const studio = String(item.studioName || "").trim();
+        const isGenericStudio = !studio || /^(озвучення|субтитри)$/i.test(studio);
+        if (!isGenericStudio && studio.toLowerCase() !== player.toLowerCase()) {
+          return `${studio} (${player})`;
+        }
+        return item.isDub ? `\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (${player})` : `\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 (${player})`;
+      }
       function resolveItemStreams(item) {
         return __async(this, null, function* () {
           const rawUrl = ensureUrl(item.url, MAIN_URL);
           if (!rawUrl || rawUrl.includes("video.ufdub")) return [];
-          const labelPrefix = item.studioName && item.studioName !== item.playerName ? `${item.playerName} (${item.studioName})` : item.playerName;
-          const tag = item.isDub ? labelPrefix : `${labelPrefix} [SUB]`;
+          const label = formatItemLabel(item);
+          const langLabel = item.isDub ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk" : "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk";
           if (rawUrl.includes("ashdi.vip")) {
-            return extractAshdi(rawUrl, tag, PROVIDER_NAME, "https://qeruya.cyou/");
+            return extractAshdi(rawUrl, label, PROVIDER_NAME, "https://qeruya.cyou/", item.isDub);
           }
           if (rawUrl.includes("moonanime")) {
-            return extractMoon(rawUrl, tag, PROVIDER_NAME);
+            return extractMoon(rawUrl, label, PROVIDER_NAME, item.isDub);
           }
           if (rawUrl.includes("fenixplay")) {
-            return extractFenix(rawUrl, tag, item.episodeNum, PROVIDER_NAME);
+            return extractFenix(rawUrl, label, item.episodeNum, PROVIDER_NAME, item.isDub);
           }
           if (rawUrl.includes("csst.online/embed/") || rawUrl.includes("monstro.site/embed/") || rawUrl.includes("monstro.online/embed/")) {
-            return extractCsst(rawUrl, tag, PROVIDER_NAME);
+            return extractCsst(rawUrl, label, PROVIDER_NAME, item.isDub);
           }
           if (rawUrl.includes("udrop.com")) {
             const s = buildNuvioStream({
               providerName: PROVIDER_NAME,
-              title: tag,
+              name: label,
+              title: label,
               url: rawUrl,
-              quality: "Auto"
+              quality: "Auto",
+              language: langLabel
             });
             return s ? [s] : [];
           }
@@ -1363,11 +1403,14 @@ var __provider = (() => {
               }
             }
             const subs = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
+            const finalLang = !item.isDub ? "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk" : subs.length > 0 ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431) \u2022 uk" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk";
             return urls.map((u) => buildNuvioStream({
               providerName: PROVIDER_NAME,
-              title: `${tag} (Tortuga)`,
+              name: label,
+              title: label,
               url: u,
               quality: "1080p",
+              language: finalLang,
               headers: { Referer: rawUrl },
               subtitles: subs
             })).filter(Boolean);

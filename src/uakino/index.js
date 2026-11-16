@@ -221,13 +221,20 @@ async function resolveUakinoPlayer(playerUrl, sourceLabel, cfg) {
 
     const subtitles = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
     const referer = selectPlayerReferer(normalized, `${cfg.baseUrl}/`);
+    const label = (sourceLabel || PROVIDER_NAME).trim();
+    const isSub = /субтитр/i.test(label);
+    const langLabel = isSub
+        ? 'Субтитри • uk'
+        : (subtitles.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
 
     return streamUrls.map(url =>
         buildNuvioStream({
             providerName: PROVIDER_NAME,
-            title: sourceLabel || PROVIDER_NAME,
+            name: label,
+            title: label,
             url,
             quality: '1080p',
+            language: langLabel,
             headers: referer ? { Referer: referer } : {},
             subtitles,
         })
@@ -328,7 +335,7 @@ async function extractFromPage(candidate, meta, isTv, season, episode, cfg) {
         const targetEp = parseInt(episode, 10);
         const matching = playlistItems.filter(it => it.epNum === targetEp);
         for (const item of matching) {
-            playersToResolve.push({ url: item.url, label: `${item.voice} • ${item.epName}` });
+            playersToResolve.push({ url: item.url, label: item.voice || PROVIDER_NAME });
         }
         if (playersToResolve.length === 0 && targetEp === 1) {
             for (const inlineUrl of extractInlinePlayerUrls($, cfg)) {

@@ -186,37 +186,57 @@ function parseRalodePlayer(html) {
     return items;
 }
 
+function cleanPlayerName(raw) {
+    const cleaned = String(raw || '').replace(/^\s*плеєр\s+/i, '').trim();
+    if (!cleaned) return 'Плеєр';
+    if (/^(ashdi|ahdi)$/i.test(cleaned)) return 'Ashdi';
+    if (/^moon$/i.test(cleaned)) return 'Moon';
+    if (/^fenix$/i.test(cleaned)) return 'Fenix';
+    if (/^trg$/i.test(cleaned)) return 'Tortuga';
+    return cleaned;
+}
+
+function formatItemLabel(item) {
+    const player = cleanPlayerName(item.playerName);
+    const studio = String(item.studioName || '').trim();
+    const isGenericStudio = !studio || /^(озвучення|субтитри)$/i.test(studio);
+    if (!isGenericStudio && studio.toLowerCase() !== player.toLowerCase()) {
+        return `${studio} (${player})`;
+    }
+    return item.isDub ? `Озвучення (${player})` : `Субтитри (${player})`;
+}
+
 async function resolveItemStreams(item) {
     const rawUrl = ensureUrl(item.url, MAIN_URL);
     if (!rawUrl || rawUrl.includes('video.ufdub')) return [];
 
-    const labelPrefix = item.studioName && item.studioName !== item.playerName
-        ? `${item.playerName} (${item.studioName})`
-        : item.playerName;
-    const tag = item.isDub ? labelPrefix : `${labelPrefix} [SUB]`;
+    const label = formatItemLabel(item);
+    const langLabel = item.isDub ? 'Озвучення • uk' : 'Субтитри • uk';
 
     if (rawUrl.includes('ashdi.vip')) {
-        return extractAshdi(rawUrl, tag, PROVIDER_NAME, 'https://qeruya.cyou/');
+        return extractAshdi(rawUrl, label, PROVIDER_NAME, 'https://qeruya.cyou/', item.isDub);
     }
     if (rawUrl.includes('moonanime')) {
-        return extractMoon(rawUrl, tag, PROVIDER_NAME);
+        return extractMoon(rawUrl, label, PROVIDER_NAME, item.isDub);
     }
     if (rawUrl.includes('fenixplay')) {
-        return extractFenix(rawUrl, tag, item.episodeNum, PROVIDER_NAME);
+        return extractFenix(rawUrl, label, item.episodeNum, PROVIDER_NAME, item.isDub);
     }
     if (
         rawUrl.includes('csst.online/embed/') ||
         rawUrl.includes('monstro.site/embed/') ||
         rawUrl.includes('monstro.online/embed/')
     ) {
-        return extractCsst(rawUrl, tag, PROVIDER_NAME);
+        return extractCsst(rawUrl, label, PROVIDER_NAME, item.isDub);
     }
     if (rawUrl.includes('udrop.com')) {
         const s = buildNuvioStream({
             providerName: PROVIDER_NAME,
-            title: tag,
+            name: label,
+            title: label,
             url: rawUrl,
             quality: 'Auto',
+            language: langLabel,
         });
         return s ? [s] : [];
     }
@@ -230,11 +250,16 @@ async function resolveItemStreams(item) {
             }
         }
         const subs = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
+        const finalLang = !item.isDub
+            ? 'Субтитри • uk'
+            : (subs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
         return urls.map(u => buildNuvioStream({
             providerName: PROVIDER_NAME,
-            title: `${tag} (Tortuga)`,
+            name: label,
+            title: label,
             url: u,
             quality: '1080p',
+            language: finalLang,
             headers: { Referer: rawUrl },
             subtitles: subs,
         })).filter(Boolean);
