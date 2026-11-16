@@ -4,7 +4,9 @@
  */
 
 const anitube = require('./providers/anitube.js');
-const uakino = require('./providers/uakino.js');
+const eneyida = require('./providers/eneyida.js');
+const uafix = require('./providers/uafix.js');
+const uaserials = require('./providers/uaserials.js');
 
 async function runCase(label, provider, args) {
     const start = Date.now();
@@ -12,7 +14,7 @@ async function runCase(label, provider, args) {
         const streams = await provider.getStreams(...args);
         const ms = Date.now() - start;
         console.log(`\n[${label}] ${streams.length} stream(s) in ${ms} ms`);
-        for (const s of streams.slice(0, 6)) {
+        for (const s of streams.slice(0, 5)) {
             console.log(`  - ${s.name} | ${s.quality} • ${s.language} | ${s.url}`);
             if (s.subtitles && s.subtitles.length > 0) {
                 console.log(`    subs: ${s.subtitles.map(sub => `${sub.name}: ${sub.url}`).join(', ')}`);
@@ -26,20 +28,24 @@ async function runCase(label, provider, args) {
 }
 
 async function main() {
-    console.log('Testing compiled providers (providers/anitube.js, providers/uakino.js)...');
+    console.log('Testing compiled UK providers...');
 
-    // AniTube tests:
-    // 1. Frieren (TMDB TV 209867) S1E1 and S2E1
+    // AniTube
     await runCase('AniTube: Frieren S1E1', anitube, ['209867', 'tv', 1, 1]);
-    await runCase('AniTube: Frieren S2E1', anitube, ['209867', 'tv', 2, 1]);
-    // 2. Attack on Titan (TMDB TV 1429) S1E1 and S2E1
-    await runCase('AniTube: Attack on Titan S1E1', anitube, ['1429', 'tv', 1, 1]);
-    await runCase('AniTube: Attack on Titan S2E1', anitube, ['1429', 'tv', 2, 1]);
-    // 3. Spirited Away (TMDB Movie 129)
+    await runCase('AniTube: Black Clover S2E7', anitube, ['73223', 'tv', 2, 7]);
     await runCase('AniTube: Spirited Away (Movie)', anitube, ['129', 'movie', null, null]);
 
-    // Uakino test:
-    await runCase('Uakino: Fight Club (Movie)', uakino, ['550', 'movie', null, null]);
+    // Eneyida
+    await runCase('Eneyida: Fight Club (Movie 550)', eneyida, ['550', 'movie', null, null]);
+    await runCase('Eneyida: Breaking Bad S1E1 (1396)', eneyida, ['1396', 'tv', 1, 1]);
+
+    // UAFlix
+    await runCase('UAFlix: Fight Club (Movie 550)', uafix, ['550', 'movie', null, null]);
+    await runCase('UAFlix: Stranger Things S1E1 (66732)', uafix, ['66732', 'tv', 1, 1]);
+
+    // UASerials
+    await runCase('UASerials: Fight Club (Movie 550)', uaserials, ['550', 'movie', null, null]);
+    await runCase('UASerials: Breaking Bad S1E1 (1396)', uaserials, ['1396', 'tv', 1, 1]);
 }
 
 main();

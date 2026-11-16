@@ -1,6 +1,6 @@
 {
-  "name": "Nuvio UK Providers (Uakino & AniTube)",
-  "version": "1.0.2",
+  "name": "Nuvio UK Providers",
+  "version": "1.1.0",
   "scrapers": [
     {
       "id": "anitube",
@@ -27,9 +27,81 @@
       "supportsExternalPlayer": true
     },
     {
+      "id": "eneyida",
+      "name": "Eneyida.tv",
+      "description": "Фільми, серіали, мультфільми та аніме українською з eneyida.tv.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/eneyida.js",
+      "enabled": true,
+      "logo": "https://eneyida.tv/favicon.ico",
+      "contentLanguage": [
+        "uk"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "uafix",
+      "name": "UAFlix.net",
+      "description": "Фільми, серіали, дорами та мультфільми українською з uafix.net.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/uafix.js",
+      "enabled": true,
+      "logo": "https://uafix.net/favicon.ico",
+      "contentLanguage": [
+        "uk"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "uaserials",
+      "name": "UASerials.com",
+      "description": "Серіали, фільми та аніме українською з uaserials.com.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/uaserials.js",
+      "enabled": true,
+      "logo": "https://uaserials.com/favicon.ico",
+      "contentLanguage": [
+        "uk"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
       "id": "uakino",
       "name": "Uakino.best",
-      "description": "Фільми, серіали, мультфільми та аніме в українському дубляжі з uakino.best (підтримує налаштування дзеркала / cf_clearance).",
+      "description": "Фільми, серіали, мультфільми та аніме з uakino.best (потребує дзеркало або cf_clearance у налаштуваннях через Cloudflare).",
       "version": "1.0.2",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
       "supportedTypes": [
@@ -37,7 +109,7 @@
         "tv"
       ],
       "filename": "providers/uakino.js",
-      "enabled": true,
+      "enabled": false,
       "hasSettings": true,
       "logo": "https://uakino.best/favicon.ico",
       "contentLanguage": [

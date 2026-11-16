@@ -1,6 +1,6 @@
 /**
  * anitube - Nuvio UK Provider (from cloudstream-extensions-uk)
- * Generated: 2026-11-16T23:40:33.963Z
+ * Generated: 2026-11-16T23:53:26.203Z
  */
 var __provider = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;

@@ -1,6 +1,6 @@
 /**
  * uakino - Nuvio UK Provider (from cloudstream-extensions-uk)
- * Generated: 2026-11-16T23:47:27.706Z
+ * Generated: 2026-11-16T23:53:26.248Z
  */
 var __provider = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;

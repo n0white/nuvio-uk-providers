@@ -1,6 +1,14 @@
-# Nuvio UK Providers (Uakino & AniTube)
+# Nuvio UK Providers
 
-Порт українських провайдерів **`Uakino`** (`uakino.best`) та **`AniTube`** (`anitube.in.ua`) із [CakesTwix/cloudstream-extensions-uk](https://github.com/CakesTwix/cloudstream-extensions-uk) у формат нативних JS-плагінів для **Nuvio** (`NuvioMobile` / `NuvioTV`).
+Порт українських провайдерів із [CakesTwix/cloudstream-extensions-uk](https://github.com/CakesTwix/cloudstream-extensions-uk) у формат нативних JS-плагінів для **Nuvio** (`NuvioMobile` / `NuvioTV`).
+
+## Провайдери в репозиторії
+
+- **AniTube.in.ua** (`anitube`) — аніме фільми та серіали (Ashdi, MoonAnime, FenixPlay, Tortuga, CSST).
+- **Eneyida.tv** (`eneyida`) — фільми, серіали, мультфільми та аніме.
+- **UAFlix.net** (`uafix`) — фільми, серіали, дорами та мультфільми.
+- **UASerials.com** (`uaserials`) — серіали, фільми та аніме.
+- **Uakino.best** (`uakino`, вимкнений за замовчуванням) — потребує дзеркало або `cf_clearance` через захист Cloudflare.
 
 ## Структура проєкту
 
@@ -11,12 +19,13 @@ nuvio-uk-providers/
 ├── server.js              # Локальний HTTP-сервер для тестування в Nuvio
 ├── test_providers.js      # Скрипт перевірки провайдерів у Node.js
 ├── src/
-│   ├── anitube/index.js   # Провайдер anitube.in.ua (Ashdi, MoonAnime, FenixPlay, Tortuga, CSST)
-│   ├── uakino/index.js    # Провайдер uakino.best (playlists.php, Tortuga XOR, PlayerJS)
+│   ├── anitube/index.js
+│   ├── eneyida/index.js
+│   ├── uafix/index.js
+│   ├── uaserials/index.js
+│   ├── uakino/index.js
 │   └── utils/             # Спільні утиліти (TMDB/AniList/Kitsu, matching, PlayerJS, extractors)
-└── providers/
-    ├── anitube.js         # Зібраний бандл для Nuvio
-    └── uakino.js          # Зібраний бандл для Nuvio
+└── providers/             # Зібрані бандли для Nuvio
 ```
 
 ## Як додати в Nuvio
