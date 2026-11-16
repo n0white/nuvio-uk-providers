@@ -1,0 +1,27 @@
+{
+  "name": "nuvio-uk-providers",
+  "version": "1.0.0",
+  "description": "Ukrainian streaming providers for Nuvio (ported from CakesTwix/cloudstream-extensions-uk)",
+  "scripts": {
+    "build": "node build.js",
+    "build:minify": "node build.js --minify",
+    "build:watch": "nodemon --watch src -e js,json --exec \"node build.js\"",
+    "start": "node server.js",
+    "test": "node test_providers.js"
+  },
+  "devDependencies": {
+    "cheerio": "^1.0.0",
+    "cheerio-without-node-native": "^0.20.2",
+    "crypto-js": "^4.2.0",
+    "esbuild": "^0.24.0",
+    "nodemon": "^3.1.0"
+  },
+  "keywords": [
+    "nuvio",
+    "ukrainian",
+    "streaming",
+    "providers",
+    "cloudstream-uk"
+  ],
+  "license": "GPL-3.0"
+}

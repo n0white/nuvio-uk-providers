@@ -1,0 +1,55 @@
+{
+  "name": "Nuvio UK Providers (Uakino & AniTube)",
+  "version": "1.0.0",
+  "scrapers": [
+    {
+      "id": "anitube",
+      "name": "AniTube.in.ua",
+      "description": "Аніме фільми та серіали українською (озвучення та субтитри) з anitube.in.ua.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/anitube.js",
+      "enabled": true,
+      "logo": "https://anitube.in.ua/favicon.ico",
+      "contentLanguage": [
+        "uk"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "uakino",
+      "name": "Uakino.best",
+      "description": "Фільми, серіали, мультфільми та аніме в українському дубляжі з uakino.best (підтримує налаштування дзеркала / cf_clearance).",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/uakino.js",
+      "enabled": true,
+      "hasSettings": true,
+      "logo": "https://uakino.best/favicon.ico",
+      "contentLanguage": [
+        "uk"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    }
+  ]
+}
