@@ -283,3 +283,97 @@ export function dedupeStreams(streams) {
     }
     return out;
 }
+
+/**
+ * Decodes Tortuga XOR or Base64+reverse obfuscated strings.
+ */
+export function decodeAndReverse(encoded) {
+    if (!encoded) return '';
+    const trimmed = String(encoded).trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        return trimmed;
+    }
+    const tortuga = decodeTortuga(trimmed);
+    if (tortuga) return tortuga;
+    try {
+        const bytes = base64ToBytes(trimmed.replace(/=+$/, ''));
+        const text = bytesToUtf8(bytes);
+        return text.split('').reverse().join('');
+    } catch (_) {
+        return '';
+    }
+}
+
+/**
+ * Extracts `file: '...'` or `file: "..."` handling embedded quotes safely.
+ */
+export function extractFileValue(html) {
+    const m = String(html || '').match(/file\s*:\s*(['"])/);
+    if (!m) return '';
+    const quote = m[1];
+    const start = m.index + m[0].length;
+    let out = '';
+    for (let i = start; i < html.length; i++) {
+        const ch = html[i];
+        if (ch === '\\' && i + 1 < html.length) {
+            out += html[i + 1];
+            i++;
+            continue;
+        }
+        if (ch === quote) break;
+        out += ch;
+    }
+    return out.trim();
+}
+
+/**
+ * Parses Tortuga episode `file` string: `{DubName}https://...m3u8(subtitle:[Lang]url)`
+ * May contain multiple `;`-separated tracks.
+ */
+export function parseTortugaFileTracks(rawFile, fallbackLabel = 'Озвучення') {
+    const tracks = [];
+    for (const rawPart of String(rawFile || '').split(';')) {
+        const part = rawPart.trim();
+        if (!part) continue;
+
+        const subTailMatch = part.match(/\(subtitle:(.*)\)$/i);
+        const cleanPart = subTailMatch ? part.slice(0, subTailMatch.index).trim() : part;
+        const inlineSub = subTailMatch && subTailMatch[1] ? subTailMatch[1].trim() : '';
+
+        const braceStart = cleanPart.indexOf('{');
+        const braceEnd = cleanPart.indexOf('}');
+        const source = (braceStart >= 0 && braceEnd > braceStart)
+            ? cleanPart.slice(braceStart + 1, braceEnd).trim()
+            : fallbackLabel;
+        const streamUrl = (braceEnd >= 0 ? cleanPart.slice(braceEnd + 1) : cleanPart).trim();
+
+        if (/^https?:\/\//i.test(streamUrl)) {
+            tracks.push({ source: source || fallbackLabel, url: streamUrl, inlineSub });
+        }
+    }
+    return tracks;
+}
+
+/**
+ * Helper to create a properly formatted Ukrainian Nuvio stream card.
+ */
+export function makeUkStream({ providerName, dubTitle, url, rawSub = '', subs = null, referer = '', quality = '1080p', headers = {} }) {
+    const title = (dubTitle || providerName || 'Stream').trim();
+    const parsedSubs = Array.isArray(subs) ? subs : parsePlayerJsSubtitles(rawSub);
+    const isSub = /субтитр|\bsub\b/i.test(title);
+    const langLabel = isSub
+        ? 'Субтитри • uk'
+        : (parsedSubs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
+    const mergedHeaders = Object.assign({}, referer ? { Referer: referer } : {}, headers);
+
+    return buildNuvioStream({
+        providerName,
+        name: title,
+        title,
+        url,
+        quality,
+        language: langLabel,
+        headers: mergedHeaders,
+        subtitles: parsedSubs,
+    });
+}

@@ -1,6 +1,6 @@
 {
   "name": "Nuvio UK Providers",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "scrapers": [
     {
       "id": "anitube",
@@ -8,20 +8,12 @@
       "description": "Аніме фільми та серіали українською (озвучення та субтитри) з anitube.in.ua.",
       "version": "1.0.1",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
+      "supportedTypes": ["movie", "tv"],
       "filename": "providers/anitube.js",
       "enabled": true,
       "logo": "https://anitube.in.ua/favicon.ico",
-      "contentLanguage": [
-        "uk"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
       "limited": false,
       "disabledPlatforms": [],
       "supportsExternalPlayer": true
@@ -30,22 +22,14 @@
       "id": "eneyida",
       "name": "Eneyida.tv",
       "description": "Фільми, серіали, мультфільми та аніме українською з eneyida.tv.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
+      "supportedTypes": ["movie", "tv"],
       "filename": "providers/eneyida.js",
       "enabled": true,
       "logo": "https://eneyida.tv/favicon.ico",
-      "contentLanguage": [
-        "uk"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
       "limited": false,
       "disabledPlatforms": [],
       "supportsExternalPlayer": true
@@ -54,22 +38,14 @@
       "id": "uafix",
       "name": "UAFlix.net",
       "description": "Фільми, серіали, дорами та мультфільми українською з uafix.net.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
+      "supportedTypes": ["movie", "tv"],
       "filename": "providers/uafix.js",
       "enabled": true,
       "logo": "https://uafix.net/favicon.ico",
-      "contentLanguage": [
-        "uk"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
       "limited": false,
       "disabledPlatforms": [],
       "supportsExternalPlayer": true
@@ -80,20 +56,220 @@
       "description": "Серіали, фільми та аніме українською з uaserials.com.",
       "version": "1.0.0",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
+      "supportedTypes": ["movie", "tv"],
       "filename": "providers/uaserials.js",
       "enabled": true,
       "logo": "https://uaserials.com/favicon.ico",
-      "contentLanguage": [
-        "uk"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "kinostrain",
+      "name": "Kinostrain.com",
+      "description": "Фільми, серіали, мультфільми та аніме українською з kinostrain.com.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/kinostrain.js",
+      "enabled": true,
+      "logo": "https://kinostrain.com/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "kinovezha",
+      "name": "KinoVezha.tv",
+      "description": "Фільми, серіали та мультфільми українською з kinovezha.tv.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/kinovezha.js",
+      "enabled": true,
+      "logo": "https://kinovezha.tv/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "kinotron",
+      "name": "KinoTron.tv",
+      "description": "Фільми, серіали, мультфільми та аніме українською з kinotron.tv.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/kinotron.js",
+      "enabled": true,
+      "logo": "https://kinotron.tv/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "serialno",
+      "name": "Serialno.tv",
+      "description": "Серіали, міні-серіали та мультсеріали українською з serialno.tv.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["tv"],
+      "filename": "providers/serialno.js",
+      "enabled": true,
+      "logo": "https://serialno.tv/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "cikava-ideya",
+      "name": "Цікава Ідея",
+      "description": "Фільми, серіали та мультсеріали в озвученні Цікава Ідея (cikava-ideya.top).",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/cikava-ideya.js",
+      "enabled": true,
+      "logo": "https://cikava-ideya.top/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "klonua",
+      "name": "KlonTV",
+      "description": "Фільми, серіали, мультфільми та аніме українською з klonua.com (пошук на сайті тимчасово не повертає результатів).",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/klonua.js",
+      "enabled": false,
+      "logo": "https://klonua.com/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "bambooua",
+      "name": "BambooUA",
+      "description": "Дорами, аніме та фільми українською з bambooua.com.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/bambooua.js",
+      "enabled": true,
+      "logo": "https://bambooua.com/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "doramy",
+      "name": "DoramyWorld",
+      "description": "Дорами та азійські фільми українською з doramy.world.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/doramy.js",
+      "enabled": true,
+      "logo": "https://doramy.world/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "animeon",
+      "name": "AnimeON.club",
+      "description": "Аніме серіали та фільми українською з animeon.club (Ashdi, Moon, Fenix).",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/animeon.js",
+      "enabled": true,
+      "logo": "https://animeon.club/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "animeua",
+      "name": "AnimeUA.club",
+      "description": "Аніме серіали, фільми та OVA українською з animeua.club.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/animeua.js",
+      "enabled": true,
+      "logo": "https://animeua.club/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "coani",
+      "name": "Coani.net",
+      "description": "Аніме українською з coani.net.",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/coani.js",
+      "enabled": true,
+      "logo": "https://coani.net/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "ufdub",
+      "name": "UFDub.com",
+      "description": "Аніме, фільми та серіали в озвученні UFDub (ufdub.com).",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/ufdub.js",
+      "enabled": true,
+      "logo": "https://ufdub.com/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
+      "limited": false,
+      "disabledPlatforms": [],
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "unimay",
+      "name": "Unimay.media",
+      "description": "Аніме українською в дубляжі Unimay Media (unimay.media).",
+      "version": "1.0.0",
+      "author": "Ported from CakesTwix/cloudstream-extensions-uk",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/unimay.js",
+      "enabled": true,
+      "logo": "https://www.unimay.media/favicon.ico",
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
       "limited": false,
       "disabledPlatforms": [],
       "supportsExternalPlayer": true
@@ -104,21 +280,13 @@
       "description": "Фільми, серіали, мультфільми та аніме з uakino.best (потребує дзеркало або cf_clearance у налаштуваннях через Cloudflare).",
       "version": "1.0.2",
       "author": "Ported from CakesTwix/cloudstream-extensions-uk",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
+      "supportedTypes": ["movie", "tv"],
       "filename": "providers/uakino.js",
       "enabled": false,
       "hasSettings": true,
       "logo": "https://uakino.best/favicon.ico",
-      "contentLanguage": [
-        "uk"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
+      "contentLanguage": ["uk"],
+      "formats": ["m3u8", "mp4"],
       "limited": false,
       "disabledPlatforms": [],
       "supportsExternalPlayer": true
