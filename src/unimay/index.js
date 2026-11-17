@@ -6,7 +6,7 @@
 import { fetchJson } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate } from '../utils/matching.js';
-import { makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://www.unimay.media';
 const API_URL = 'https://api.unimay.media';
@@ -65,11 +65,14 @@ async function getStreams(tmdbId, mediaType, season, episode) {
 
             if (!targetEp || !targetEp.hls || !targetEp.hls.master) continue;
 
+            const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
             const s = makeUkStream({
                 providerName: PROVIDER_NAME,
                 dubTitle: `Unimay (${targetEp.title || 'Дубляж'})`,
                 url: targetEp.hls.master,
                 referer: `${MAIN_URL}/`,
+                episodeTag,
+                siteTitle: candidate.title,
             });
             if (s) return dedupeStreams([s]);
         }

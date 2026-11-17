@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 import { fetchText, postFormText, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
-import { makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://bambooua.com';
 const PROVIDER_NAME = 'BambooUA';
@@ -69,6 +69,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
             try { playlist = JSON.parse(m[1]); } catch (_) { continue; }
             if (!Array.isArray(playlist)) continue;
 
+            const pageTitle = stripSeo($('h1').first().text().trim() || candidate.title);
+            const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
             const streams = [];
             for (const group of playlist) {
                 const groupTitle = (group && group.title) || PROVIDER_NAME;
@@ -84,21 +86,25 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                             dubTitle: groupTitle,
                             url: f,
                             referer: `${MAIN_URL}/`,
+                            episodeTag,
+                            siteTitle: pageTitle,
                         });
                         if (s) streams.push(s);
                     }
                 } else {
                     const episodes = (group.folder || []).filter(ep => ep && ep.file && !isSponsorVideo(ep.file));
-                    const targetEp = episodes[effEpisode - 1] || episodes.find(ep => {
+                    const targetEp = episodes.find(ep => {
                         const numM = String(ep.title || '').match(/\d+/);
                         return numM && parseInt(numM[0], 10) === effEpisode;
-                    });
+                    }) || episodes[effEpisode - 1];
                     if (targetEp && targetEp.file) {
                         const s = makeUkStream({
                             providerName: PROVIDER_NAME,
                             dubTitle: groupTitle,
                             url: targetEp.file,
                             referer: `${MAIN_URL}/`,
+                            episodeTag,
+                            siteTitle: pageTitle,
                         });
                         if (s) streams.push(s);
                     }

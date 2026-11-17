@@ -357,19 +357,48 @@ export function parseTortugaFileTracks(rawFile, fallbackLabel = 'Озвучен�
 /**
  * Helper to create a properly formatted Ukrainian Nuvio stream card.
  */
-export function makeUkStream({ providerName, dubTitle, url, rawSub = '', subs = null, referer = '', quality = '1080p', headers = {} }) {
-    const title = (dubTitle || providerName || 'Stream').trim();
+export function formatEpisodeTag(isTv, season, episode) {
+    if (!isTv) return '';
+    const s = parseInt(season, 10);
+    const e = parseInt(episode, 10);
+    if (!Number.isFinite(s) || !Number.isFinite(e)) return '';
+    return `S${s}E${e}`;
+}
+
+function truncateLabel(str, maxLen = 36) {
+    const clean = String(str || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return '';
+    return clean.length > maxLen ? clean.slice(0, maxLen - 1).trimEnd() + '…' : clean;
+}
+
+export function makeUkStream({
+    providerName,
+    dubTitle,
+    url,
+    rawSub = '',
+    subs = null,
+    referer = '',
+    quality = '1080p',
+    headers = {},
+    episodeTag = '',
+    siteTitle = '',
+    isSub: isSubOverride = null,
+}) {
+    const baseName = (dubTitle || providerName || 'Stream').trim();
+    const displayName = episodeTag ? `${episodeTag} • ${baseName}` : baseName;
     const parsedSubs = Array.isArray(subs) ? subs : parsePlayerJsSubtitles(rawSub);
-    const isSub = /субтитр|\bsub\b/i.test(title);
-    const langLabel = isSub
-        ? 'Субтитри • uk'
-        : (parsedSubs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
+    const isSub = isSubOverride !== null ? isSubOverride : /субтитр|\bsub\b/i.test(baseName);
+    const modeLabel = isSub
+        ? 'Субтитри'
+        : (parsedSubs.length > 0 ? 'Озвучення (+суб)' : 'Озвучення');
+    const shortSite = truncateLabel(siteTitle);
+    const langLabel = shortSite ? `${modeLabel} • ${shortSite} • uk` : `${modeLabel} • uk`;
     const mergedHeaders = Object.assign({}, referer ? { Referer: referer } : {}, headers);
 
     return buildNuvioStream({
         providerName,
-        name: title,
-        title,
+        name: displayName,
+        title: displayName,
         url,
         quality,
         language: langLabel,

@@ -12,6 +12,7 @@ import {
     extractFileValue,
     extractPlayerJsSubtitleRaw,
     parseTortugaFileTracks,
+    formatEpisodeTag,
     makeUkStream,
     dedupeStreams,
 } from './playerjs.js';
@@ -111,9 +112,10 @@ export async function runDleSiteProvider(config, tmdbId, mediaType, season, epis
             const decoded = useDecodeAndReverse ? decodeAndReverse(rawFile) : rawFile;
             if (!decoded) continue;
 
+            const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
             const streams = [];
             if (!decoded.startsWith('[')) {
-                if (/^https?:\/\//i.test(decoded)) {
+                if (!isTv && /^https?:\/\//i.test(decoded)) {
                     const rawSub = extractPlayerJsSubtitleRaw(playerHtml);
                     const s = makeUkStream({
                         providerName,
@@ -121,6 +123,8 @@ export async function runDleSiteProvider(config, tmdbId, mediaType, season, epis
                         url: decoded,
                         rawSub,
                         referer: playReferer,
+                        episodeTag,
+                        siteTitle: pageTitle,
                     });
                     if (s) streams.push(s);
                 }
@@ -147,6 +151,8 @@ export async function runDleSiteProvider(config, tmdbId, mediaType, season, epis
                                         url: track.url,
                                         rawSub: epItem.subtitle || track.inlineSub || '',
                                         referer: playReferer,
+                                        episodeTag,
+                                        siteTitle: pageTitle,
                                     });
                                     if (s) streams.push(s);
                                 }
@@ -156,14 +162,18 @@ export async function runDleSiteProvider(config, tmdbId, mediaType, season, epis
                         for (const dub of parsed) {
                             const dubTitle = (dub && dub.title) || providerName;
                             if (dub && dub.file && !dub.folder) {
-                                const s = makeUkStream({
-                                    providerName,
-                                    dubTitle,
-                                    url: dub.file,
-                                    rawSub: dub.subtitle || '',
-                                    referer: playReferer,
-                                });
-                                if (s) streams.push(s);
+                                if (!isTv) {
+                                    const s = makeUkStream({
+                                        providerName,
+                                        dubTitle,
+                                        url: dub.file,
+                                        rawSub: dub.subtitle || '',
+                                        referer: playReferer,
+                                        episodeTag,
+                                        siteTitle: pageTitle,
+                                    });
+                                    if (s) streams.push(s);
+                                }
                                 continue;
                             }
                             for (const sItem of (dub && dub.folder) || []) {
@@ -179,6 +189,8 @@ export async function runDleSiteProvider(config, tmdbId, mediaType, season, epis
                                             url: track.url,
                                             rawSub: epItem.subtitle || track.inlineSub || '',
                                             referer: playReferer,
+                                            episodeTag,
+                                            siteTitle: pageTitle,
                                         });
                                         if (s) streams.push(s);
                                     }

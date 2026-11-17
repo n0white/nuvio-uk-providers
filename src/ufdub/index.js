@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 import { fetchText, postFormText, safeFetch, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
-import { makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://ufdub.com';
 const PROVIDER_NAME = 'UFDub';
@@ -94,6 +94,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
 
             if (epLinks.length === 0) continue;
 
+            const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
             const streams = [];
             for (const ep of epLinks.slice(0, 3)) {
                 const res = await safeFetch(ep.url, { headers: { Referer: playerUrl }, redirect: 'manual', timeoutMs: 10000 });
@@ -113,6 +114,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                         dubTitle: `Озвучення (${PROVIDER_NAME})`,
                         url: finalUrl,
                         referer: `${MAIN_URL}/`,
+                        episodeTag,
+                        siteTitle: pageTitle,
                     });
                     if (s) streams.push(s);
                 }

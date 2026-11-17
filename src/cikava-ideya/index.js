@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 import { fetchText, postFormText, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
-import { extractFileValue, extractPlayerJsSubtitleRaw, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { extractFileValue, extractPlayerJsSubtitleRaw, formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://cikava-ideya.top';
 const PROVIDER_NAME = 'Цікава Ідея';
@@ -32,7 +32,7 @@ function parseSwitchesObject(html) {
     }
 }
 
-async function resolveCikavaPlayer(playerUrl) {
+async function resolveCikavaPlayer(playerUrl, metaCtx = {}) {
     const url = ensureUrl(playerUrl, MAIN_URL);
     if (!url) return [];
     const html = await fetchText(url, { headers: { Referer: `${MAIN_URL}/` }, timeoutMs: 12000 });
@@ -48,6 +48,8 @@ async function resolveCikavaPlayer(playerUrl) {
         url: streamUrl,
         rawSub: subRaw,
         referer: PLAY_REFERER,
+        episodeTag: metaCtx.episodeTag || '',
+        siteTitle: metaCtx.siteTitle || '',
     });
     return s ? [s] : [];
 }
@@ -106,8 +108,14 @@ async function getStreams(tmdbId, mediaType, season, episode) {
             const player1 = switches && switches.Player1;
             if (!player1) continue;
 
+            const metaCtx = {
+                episodeTag: formatEpisodeTag(isTv, effSeason, effEpisode),
+                siteTitle: pageTitle,
+            };
+
             if (typeof player1 === 'string') {
-                const streams = await resolveCikavaPlayer(player1);
+                if (isTv) continue;
+                const streams = await resolveCikavaPlayer(player1, metaCtx);
                 if (streams.length > 0) return dedupeStreams(streams);
                 continue;
             }
@@ -129,7 +137,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                         }
                     }
                 }
-                const res = await Promise.all(targetUrls.slice(0, 4).map(resolveCikavaPlayer));
+                const res = await Promise.all(targetUrls.slice(0, 4).map(u => resolveCikavaPlayer(u, metaCtx)));
                 const streams = dedupeStreams(res.flat());
                 if (streams.length > 0) return streams;
             }

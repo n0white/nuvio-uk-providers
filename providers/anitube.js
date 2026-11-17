@@ -1,6 +1,6 @@
 /**
  * anitube - Nuvio UK Provider (from cloudstream-extensions-uk)
- * Generated: 2026-11-17T00:13:51.503Z
+ * Generated: 2026-11-17T00:22:50.493Z
  */
 var __provider = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -442,18 +442,35 @@ var __provider = (() => {
     const targetTitles = [];
     for (const t of rawTargets) {
       if (!t) continue;
-      targetTitles.push(t);
+      targetTitles.push({ text: t, isColonPrefix: false });
       if (t.includes(":")) {
         const prefix = t.split(":")[0].trim();
-        if (prefix.length >= 5) targetTitles.push(prefix);
+        if (prefix.length >= 5) targetTitles.push({ text: prefix, isColonPrefix: true });
       }
     }
     if (targetTitles.length === 0) return -1;
     const lowerRaw = candidateTitle.toLowerCase();
     if (/\b(трейлер|анонс|тізер|trailer)\b/i.test(lowerRaw)) return -1;
+    const joinedTargetsLower = rawTargets.join(" ").toLowerCase();
+    if (isTv && /\b(фільм\s*\d*|movie)\b/i.test(lowerRaw) && !/\b(фільм|movie)\b/i.test(joinedTargetsLower)) {
+      return -1;
+    }
+    let matchedExplicitSeason = false;
+    if (isTv && season != null) {
+      const seasonMatch = lowerRaw.match(/(?:(\d+)\s*сезон|сезон\s*(\d+)|season\s*(\d+))/i);
+      if (seasonMatch) {
+        const pageSeason = parseInt(seasonMatch[1] || seasonMatch[2] || seasonMatch[3], 10);
+        if (pageSeason !== Number(season)) {
+          return -1;
+        }
+        matchedExplicitSeason = true;
+      }
+    }
+    const effectiveYear = candidateYear || parsed.year;
     let bestTitleScore = 0;
-    for (const target of targetTitles) {
-      const normTarget = normalizeText(target);
+    let matchedSingleTokenWithExtra = false;
+    for (const targetObj of targetTitles) {
+      const normTarget = normalizeText(targetObj.text);
       if (!normTarget) continue;
       const targetTokens = normTarget.split(" ").filter(Boolean);
       for (const cand of candidateVariants) {
@@ -461,7 +478,11 @@ var __provider = (() => {
         if (!normCand) continue;
         const normCandBase = normCand.replace(/\b(\d+\s*сезон|сезон\s*\d+|season\s*\d+|s\d+)\b/gi, "").replace(/\s+/g, " ").trim();
         if (normCand === normTarget || normCandBase === normTarget) {
-          bestTitleScore = Math.max(bestTitleScore, 100);
+          const score = targetObj.isColonPrefix ? 75 : 100;
+          if (score > bestTitleScore) {
+            bestTitleScore = score;
+            matchedSingleTokenWithExtra = false;
+          }
           continue;
         }
         const candTokens = (normCandBase || normCand).split(" ").filter(Boolean);
@@ -476,39 +497,43 @@ var __provider = (() => {
         const coverageCand = overlap / candSet.size;
         if (coverageTarget >= 0.65 && coverageCand >= 0.5) {
           const score = Math.round(coverageTarget * 60 + coverageCand * 30);
-          bestTitleScore = Math.max(bestTitleScore, score);
+          if (score > bestTitleScore) {
+            bestTitleScore = score;
+            matchedSingleTokenWithExtra = false;
+          }
         } else if (targetTokens.length === 1 && targetTokens[0].length >= 5 && candSet.has(targetTokens[0])) {
           const startsWithTarget = candTokens[0] === targetTokens[0];
           const score = startsWithTarget ? 68 : Math.max(46, 58 - candTokens.length * 2);
-          bestTitleScore = Math.max(bestTitleScore, score);
-        } else if (targetTokens.length === 1 && candTokens[0] === targetTokens[0] && candTokens.length <= 3) {
-          bestTitleScore = Math.max(bestTitleScore, 55);
+          if (score > bestTitleScore) {
+            bestTitleScore = score;
+            matchedSingleTokenWithExtra = candTokens.length > 1;
+          }
+        } else if (targetTokens.length === 1 && candTokens[0] === targetTokens[0] && candTokens.length <= 2) {
+          if (55 > bestTitleScore) {
+            bestTitleScore = 55;
+            matchedSingleTokenWithExtra = candTokens.length > 1;
+          }
         }
       }
     }
     if (bestTitleScore < 45) return -1;
     let finalScore = bestTitleScore;
-    const effectiveYear = candidateYear || parsed.year;
     if (meta.year && effectiveYear) {
       const diff = Math.abs(meta.year - effectiveYear);
-      if (diff === 0) finalScore += 25;
-      else if (diff === 1) finalScore += 10;
-      else if (diff > 2 && !isTv) {
+      if (diff === 0) {
+        finalScore += 25;
+      } else if (diff === 1) {
+        finalScore += 10;
+      } else if (diff > 2 && !isTv) {
         return -1;
-      } else if (diff > 5 && isTv) {
-        finalScore -= 20;
+      } else if (diff > 4 && isTv && !matchedExplicitSeason) {
+        return -1;
       }
+    } else if (matchedSingleTokenWithExtra && !matchedExplicitSeason && bestTitleScore < 75) {
+      if (isTv) return -1;
     }
-    if (isTv && season != null) {
-      const seasonMatch = lowerRaw.match(/(?:(\d+)\s*сезон|сезон\s*(\d+)|season\s*(\d+))/i);
-      if (seasonMatch) {
-        const pageSeason = parseInt(seasonMatch[1] || seasonMatch[2] || seasonMatch[3], 10);
-        if (pageSeason === Number(season)) {
-          finalScore += 30;
-        } else {
-          finalScore -= 35;
-        }
-      }
+    if (matchedExplicitSeason) {
+      finalScore += 30;
     }
     return finalScore;
   }
@@ -784,6 +809,50 @@ var __provider = (() => {
     }
     return out;
   }
+  function formatEpisodeTag(isTv, season, episode) {
+    if (!isTv) return "";
+    const s = parseInt(season, 10);
+    const e = parseInt(episode, 10);
+    if (!Number.isFinite(s) || !Number.isFinite(e)) return "";
+    return `S${s}E${e}`;
+  }
+  function truncateLabel(str, maxLen = 36) {
+    const clean = String(str || "").replace(/\s+/g, " ").trim();
+    if (!clean) return "";
+    return clean.length > maxLen ? clean.slice(0, maxLen - 1).trimEnd() + "\u2026" : clean;
+  }
+  function makeUkStream({
+    providerName,
+    dubTitle,
+    url,
+    rawSub = "",
+    subs = null,
+    referer = "",
+    quality = "1080p",
+    headers = {},
+    episodeTag = "",
+    siteTitle = "",
+    isSub: isSubOverride = null
+  }) {
+    const baseName = (dubTitle || providerName || "Stream").trim();
+    const displayName = episodeTag ? `${episodeTag} \u2022 ${baseName}` : baseName;
+    const parsedSubs = Array.isArray(subs) ? subs : parsePlayerJsSubtitles(rawSub);
+    const isSub = isSubOverride !== null ? isSubOverride : /субтитр|\bsub\b/i.test(baseName);
+    const modeLabel = isSub ? "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438" : parsedSubs.length > 0 ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431)" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F";
+    const shortSite = truncateLabel(siteTitle);
+    const langLabel = shortSite ? `${modeLabel} \u2022 ${shortSite} \u2022 uk` : `${modeLabel} \u2022 uk`;
+    const mergedHeaders = Object.assign({}, referer ? { Referer: referer } : {}, headers);
+    return buildNuvioStream({
+      providerName,
+      name: displayName,
+      title: displayName,
+      url,
+      quality,
+      language: langLabel,
+      headers: mergedHeaders,
+      subtitles: parsedSubs
+    });
+  }
   var init_playerjs = __esm({
     "src/utils/playerjs.js"() {
       init_http();
@@ -804,13 +873,8 @@ var __provider = (() => {
     if (/forced|форс|напис/i.test(label)) return label;
     return `${label} (\u0444\u043E\u0440\u0441\u043E\u0432\u0430\u043D\u0456)`;
   }
-  function buildLanguageLabel(isDub, subtitles) {
-    const hasSubs = Array.isArray(subtitles) && subtitles.length > 0;
-    if (isDub === false) return "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk";
-    return hasSubs ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431) \u2022 uk" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk";
-  }
-  function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride, isDub = true) {
-    return __async(this, null, function* () {
+  function extractAshdi(_0, _1, _2, _3) {
+    return __async(this, arguments, function* (iframeUrl, sourceLabel, providerName, refererOverride, isDub = true, metaCtx = {}) {
       const fixedUrl = ensureUrl(iframeUrl).replace("/embed/", "/vod/");
       if (!fixedUrl) return [];
       const html = yield fetchText(fixedUrl, {
@@ -828,16 +892,16 @@ var __provider = (() => {
         subtitles = yield fetchHlsSubtitles(fileUrl, { Referer: playReferer });
       }
       const cleanSubs = distinctSubtitles(subtitles);
-      const stream = buildNuvioStream({
+      const stream = makeUkStream({
         providerName,
-        name: sourceLabel,
-        title: sourceLabel,
+        dubTitle: sourceLabel,
         url: fileUrl,
+        subs: cleanSubs,
+        referer: playReferer,
         quality: "1080p",
-        language: buildLanguageLabel(isDub, cleanSubs),
-        headers: { Referer: playReferer },
-        subtitles: cleanSubs,
-        type: "hls"
+        episodeTag: metaCtx.episodeTag || "",
+        siteTitle: metaCtx.siteTitle || "",
+        isSub: isDub === false
       });
       return stream ? [stream] : [];
     });
@@ -925,8 +989,8 @@ var __provider = (() => {
       }
     });
   }
-  function extractMoon(iframeUrl, sourceLabel, providerName, isDub = true) {
-    return __async(this, null, function* () {
+  function extractMoon(_0, _1, _2) {
+    return __async(this, arguments, function* (iframeUrl, sourceLabel, providerName, isDub = true, metaCtx = {}) {
       const cleanUrl = ensureUrl(iframeUrl).replace(/[?&]player=[^&]*/g, "").replace("?&", "?").replace(/[?&]$/, "");
       if (!cleanUrl) return [];
       const html = yield fetchText(cleanUrl, {
@@ -998,15 +1062,16 @@ var __provider = (() => {
             qUrl = (yield resolveMoonContent(qUrl)) || "";
           }
           if (!qUrl) continue;
-          const s = buildNuvioStream({
+          const s = makeUkStream({
             providerName,
-            name: sourceLabel,
-            title: sourceLabel,
+            dubTitle: sourceLabel,
             url: qUrl,
+            subs: subtitles,
             quality: qLabel,
-            language: buildLanguageLabel(isDub, subtitles),
             headers: moonHeaders,
-            subtitles
+            episodeTag: metaCtx.episodeTag || "",
+            siteTitle: metaCtx.siteTitle || "",
+            isSub: isDub === false
           });
           if (s) streams.push(s);
         }
@@ -1016,15 +1081,16 @@ var __provider = (() => {
           finalUrl = (yield resolveMoonContent(finalUrl)) || "";
         }
         if (finalUrl) {
-          const s = buildNuvioStream({
+          const s = makeUkStream({
             providerName,
-            name: sourceLabel,
-            title: sourceLabel,
+            dubTitle: sourceLabel,
             url: finalUrl,
+            subs: subtitles,
             quality: "1080p",
-            language: buildLanguageLabel(isDub, subtitles),
             headers: moonHeaders,
-            subtitles
+            episodeTag: metaCtx.episodeTag || "",
+            siteTitle: metaCtx.siteTitle || "",
+            isSub: isDub === false
           });
           if (s) streams.push(s);
         }
@@ -1072,8 +1138,8 @@ var __provider = (() => {
     if (value.includes("token=")) return value;
     return value + (value.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(token);
   }
-  function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName, isDub = true) {
-    return __async(this, null, function* () {
+  function extractFenix(_0, _1, _2, _3) {
+    return __async(this, arguments, function* (iframeUrl, sourceLabel, episodeNumber, providerName, isDub = true, metaCtx = {}) {
       const fixedUrl = ensureUrl(iframeUrl);
       if (!fixedUrl) return [];
       const html = yield fetchText(fixedUrl, {
@@ -1119,16 +1185,16 @@ var __provider = (() => {
         if (!authorized || seenUrls.has(authorized)) return;
         seenUrls.add(authorized);
         const title = label && label !== sourceLabel ? `${sourceLabel} \u2014 ${label}` : sourceLabel;
-        const s = buildNuvioStream({
+        const s = makeUkStream({
           providerName,
-          name: title,
-          title,
+          dubTitle: title,
           url: authorized,
+          subs: subtitles,
+          referer: FENIX_REFERER,
           quality: "1080p",
-          language: buildLanguageLabel(isDub, subtitles),
-          headers: { Referer: FENIX_REFERER },
-          subtitles,
-          type: "hls"
+          episodeTag: metaCtx.episodeTag || "",
+          siteTitle: metaCtx.siteTitle || "",
+          isSub: isDub === false
         });
         if (s) streams.push(s);
       };
@@ -1139,8 +1205,8 @@ var __provider = (() => {
       return streams;
     });
   }
-  function extractCsst(iframeUrl, sourceLabel, providerName, isDub = true) {
-    return __async(this, null, function* () {
+  function extractCsst(_0, _1, _2) {
+    return __async(this, arguments, function* (iframeUrl, sourceLabel, providerName, isDub = true, metaCtx = {}) {
       const fixedUrl = ensureUrl(iframeUrl);
       if (!fixedUrl) return [];
       const html = yield fetchText(fixedUrl, {
@@ -1160,15 +1226,16 @@ var __provider = (() => {
         const quality = bracketMatch ? bracketMatch[1] : "Auto";
         const url = bracketMatch ? bracketMatch[2].trim() : trimmed;
         if (!/^https?:\/\//i.test(url)) continue;
-        const s = buildNuvioStream({
+        const s = makeUkStream({
           providerName,
-          name: sourceLabel,
-          title: sourceLabel,
+          dubTitle: sourceLabel,
           url,
+          subs: subtitles,
+          referer: fixedUrl,
           quality,
-          language: buildLanguageLabel(isDub, subtitles),
-          headers: { Referer: fixedUrl },
-          subtitles
+          episodeTag: metaCtx.episodeTag || "",
+          siteTitle: metaCtx.siteTitle || "",
+          isSub: isDub === false
         });
         if (s) streams.push(s);
       }
@@ -1357,39 +1424,50 @@ var __provider = (() => {
       }
       function formatItemLabel(item) {
         const player = cleanPlayerName(item.playerName);
-        const studio = String(item.studioName || "").trim();
-        const isGenericStudio = !studio || /^(озвучення|субтитри)$/i.test(studio);
-        if (!isGenericStudio && studio.toLowerCase() !== player.toLowerCase()) {
+        let studio = String(item.studioName || "").trim().replace(/^\s*плеєр\s+/i, "").trim();
+        if (/^(ashdi|ahdi)$/i.test(studio)) studio = "Ashdi";
+        else if (/^moon$/i.test(studio)) studio = "Moon";
+        else if (/^fenix$/i.test(studio)) studio = "Fenix";
+        else if (/^trg$/i.test(studio)) studio = "Tortuga";
+        const isGenericStudio = !studio || /^(озвучення|субтитри|плеєр)$/i.test(studio);
+        const isGenericPlayer = !player || /^(плеєр)$/i.test(player);
+        if (!isGenericStudio && !isGenericPlayer && studio.toLowerCase() !== player.toLowerCase()) {
           return `${studio} (${player})`;
         }
-        return item.isDub ? `\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (${player})` : `\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 (${player})`;
+        const base = !isGenericStudio ? studio : !isGenericPlayer ? player : "";
+        if (base) {
+          return item.isDub ? `\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (${base})` : `\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 (${base})`;
+        }
+        return item.isDub ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F" : "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438";
       }
-      function resolveItemStreams(item) {
-        return __async(this, null, function* () {
+      function resolveItemStreams(_0) {
+        return __async(this, arguments, function* (item, metaCtx = {}) {
           const rawUrl = ensureUrl(item.url, MAIN_URL);
           if (!rawUrl || rawUrl.includes("video.ufdub")) return [];
           const label = formatItemLabel(item);
-          const langLabel = item.isDub ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk" : "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk";
+          const episodeTag = metaCtx.episodeTag || "";
+          const siteTitle = metaCtx.siteTitle || "";
           if (rawUrl.includes("ashdi.vip")) {
-            return extractAshdi(rawUrl, label, PROVIDER_NAME, "https://qeruya.cyou/", item.isDub);
+            return extractAshdi(rawUrl, label, PROVIDER_NAME, "https://qeruya.cyou/", item.isDub, metaCtx);
           }
           if (rawUrl.includes("moonanime")) {
-            return extractMoon(rawUrl, label, PROVIDER_NAME, item.isDub);
+            return extractMoon(rawUrl, label, PROVIDER_NAME, item.isDub, metaCtx);
           }
           if (rawUrl.includes("fenixplay")) {
-            return extractFenix(rawUrl, label, item.episodeNum, PROVIDER_NAME, item.isDub);
+            return extractFenix(rawUrl, label, item.episodeNum, PROVIDER_NAME, item.isDub, metaCtx);
           }
           if (rawUrl.includes("csst.online/embed/") || rawUrl.includes("monstro.site/embed/") || rawUrl.includes("monstro.online/embed/")) {
-            return extractCsst(rawUrl, label, PROVIDER_NAME, item.isDub);
+            return extractCsst(rawUrl, label, PROVIDER_NAME, item.isDub, metaCtx);
           }
           if (rawUrl.includes("udrop.com")) {
-            const s = buildNuvioStream({
+            const s = makeUkStream({
               providerName: PROVIDER_NAME,
-              name: label,
-              title: label,
+              dubTitle: label,
               url: rawUrl,
               quality: "Auto",
-              language: langLabel
+              isSub: !item.isDub,
+              episodeTag,
+              siteTitle
             });
             return s ? [s] : [];
           }
@@ -1403,16 +1481,16 @@ var __provider = (() => {
               }
             }
             const subs = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
-            const finalLang = !item.isDub ? "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk" : subs.length > 0 ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431) \u2022 uk" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk";
-            return urls.map((u) => buildNuvioStream({
+            return urls.map((u) => makeUkStream({
               providerName: PROVIDER_NAME,
-              name: label,
-              title: label,
+              dubTitle: label,
               url: u,
+              subs,
+              referer: rawUrl,
               quality: "1080p",
-              language: finalLang,
-              headers: { Referer: rawUrl },
-              subtitles: subs
+              isSub: !item.isDub,
+              episodeTag,
+              siteTitle
             })).filter(Boolean);
           }
           return [];
@@ -1481,8 +1559,12 @@ var __provider = (() => {
             }
           }
           if (targetItems.length === 0) return [];
+          const metaCtx = {
+            episodeTag: formatEpisodeTag(isTv, season, episode),
+            siteTitle: pageTitle
+          };
           const capped = targetItems.slice(0, 8);
-          const results = yield Promise.all(capped.map((it) => resolveItemStreams(it)));
+          const results = yield Promise.all(capped.map((it) => resolveItemStreams(it, metaCtx)));
           return dedupeStreams(results.flat());
         });
       }

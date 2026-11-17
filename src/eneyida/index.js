@@ -10,8 +10,8 @@ import { pickBestCandidates, scoreCandidate } from '../utils/matching.js';
 import {
     extractPlayerJsFiles,
     extractPlayerJsSubtitleRaw,
-    parsePlayerJsSubtitles,
-    buildNuvioStream,
+    formatEpisodeTag,
+    makeUkStream,
     dedupeStreams,
 } from '../utils/playerjs.js';
 
@@ -80,23 +80,15 @@ async function searchEneyida(query) {
     return items;
 }
 
-function makeStream(dubTitle, url, rawSub, defaultTitle) {
-    const title = (dubTitle || defaultTitle || PROVIDER_NAME).trim();
-    const subs = parsePlayerJsSubtitles(rawSub);
-    const isSub = /субтитр/i.test(title);
-    const langLabel = isSub
-        ? 'Субтитри • uk'
-        : (subs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
-
-    return buildNuvioStream({
+function makeStream(dubTitle, url, rawSub, defaultTitle, metaCtx = {}) {
+    return makeUkStream({
         providerName: PROVIDER_NAME,
-        name: title,
-        title,
+        dubTitle: dubTitle || defaultTitle || PROVIDER_NAME,
         url,
-        quality: '1080p',
-        language: langLabel,
-        headers: { Referer: PLAY_REFERER },
-        subtitles: subs,
+        rawSub,
+        referer: PLAY_REFERER,
+        episodeTag: metaCtx.episodeTag || '',
+        siteTitle: metaCtx.siteTitle || '',
     });
 }
 
@@ -140,18 +132,22 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
         try { parsedJson = JSON.parse(rawFile); } catch (_) {}
     }
 
+    const metaCtx = {
+        episodeTag: formatEpisodeTag(isTv, season, episode),
+        siteTitle: pageTitle,
+    };
     const streams = [];
     if (!isTv) {
         if (Array.isArray(parsedJson)) {
             for (const dub of parsedJson) {
                 if (dub && dub.file) {
-                    const s = makeStream(dub.title, dub.file, dub.subtitle, pageTitle);
+                    const s = makeStream(dub.title, dub.file, dub.subtitle, pageTitle, metaCtx);
                     if (s) streams.push(s);
                 }
             }
         } else if (/^https?:\/\//i.test(rawFile)) {
             const subRaw = extractPlayerJsSubtitleRaw(playerHtml);
-            const s = makeStream(`Озвучення (${PROVIDER_NAME})`, rawFile, subRaw, PROVIDER_NAME);
+            const s = makeStream(`Озвучення (${PROVIDER_NAME})`, rawFile, subRaw, pageTitle, metaCtx);
             if (s) streams.push(s);
         }
         return dedupeStreams(streams);
@@ -175,7 +171,7 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
                 for (const ep of (dub.folder || [])) {
                     const eNum = extractNumber(ep.title);
                     if (eNum === targetE && ep.file) {
-                        const s = makeStream(dubTitle, ep.file, ep.subtitle, pageTitle);
+                        const s = makeStream(dubTitle, ep.file, ep.subtitle, pageTitle, metaCtx);
                         if (s) streams.push(s);
                     }
                 }
@@ -191,7 +187,7 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
                 for (const ep of (sItem.folder || [])) {
                     const eNum = extractNumber(ep.title);
                     if (eNum === targetE && ep.file) {
-                        const s = makeStream(dubTitle, ep.file, ep.subtitle, pageTitle);
+                        const s = makeStream(dubTitle, ep.file, ep.subtitle, pageTitle, metaCtx);
                         if (s) streams.push(s);
                     }
                 }

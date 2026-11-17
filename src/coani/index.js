@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 import { fetchText, fetchJson, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
-import { makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://coani.net';
 const PROVIDER_NAME = 'Coaninet';
@@ -64,7 +64,9 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                 }
             });
 
-            const targetSeasonObj = seasons.find(s => s.num === effSeason) || { num: 1, href: candidate.href };
+            const targetSeasonObj = seasons.find(s => s.num === effSeason)
+                || ((!isTv || (seasons.length === 0 && effSeason === 1)) ? { num: 1, href: candidate.href } : null);
+            if (!targetSeasonObj) continue;
             const seasonSlug = targetSeasonObj.href.split('/').pop();
             const seasonRes = await fetchJson(`${MAIN_URL}/api/public/film/season?slug=${encodeURIComponent(seasonSlug)}`, { timeoutMs: 10000 });
             const seasonId = seasonRes && seasonRes.data && seasonRes.data.id;
@@ -72,6 +74,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
 
             const seriesRes = await fetchJson(`${MAIN_URL}/api/public/film/season/${seasonId}/series`, { timeoutMs: 10000 });
             const items = (seriesRes && seriesRes.data) || [];
+            const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
             const streams = [];
 
             for (const entry of items) {
@@ -85,6 +88,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                     dubTitle: d.voice_type || d.voiceType || PROVIDER_NAME,
                     url: d.video,
                     referer: `${MAIN_URL}/`,
+                    episodeTag,
+                    siteTitle: candidate.title,
                 });
                 if (s) streams.push(s);
             }

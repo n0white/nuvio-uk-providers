@@ -41,6 +41,31 @@ async function main() {
         runCase('CikavaIdeya: Resident Alien S1E1', './providers/cikava-ideya.js', ['96580', 'tv', 1, 1]),
         runCase('Doramy: Destined with You S1E1', './providers/doramy.js', ['215001', 'tv', 1, 1]),
     ]);
+
+    console.log('\nChecking Pokemon S10E2 (TMDB 60572) false-positive regression...');
+    const pokemonChecks = await Promise.all([
+        runCase('Pokemon S10E2 [AniTube]', './providers/anitube.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [UAFlix]', './providers/uafix.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [UASerials]', './providers/uaserials.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [Eneyida]', './providers/eneyida.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [KinoVezha]', './providers/kinovezha.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [KinoTron]', './providers/kinotron.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [Serialno]', './providers/serialno.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [AnimeON]', './providers/animeon.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [AnimeUA]', './providers/animeua.js', ['60572', 'tv', 10, 2]),
+        runCase('Pokemon S10E2 [Kinostrain]', './providers/kinostrain.js', ['60572', 'tv', 10, 2]),
+    ]);
+
+    const allPokemon = pokemonChecks.flat();
+    const badPokemon = allPokemon.filter(s =>
+        /arceus|хроніки|детектив|пікачу|pokemon_s2|сезон\s*2\b/i.test(`${s.name || ''} ${s.language || ''} ${s.url || ''}`)
+    );
+    if (badPokemon.length > 0) {
+        console.error('\nFAIL: False-positive Pokemon streams found:', badPokemon);
+        process.exitCode = 1;
+    } else {
+        console.log(`\nPASS: 0 false-positive Pokemon movies/wrong seasons (${allPokemon.length} valid S10E2 streams).`);
+    }
 }
 
 main();

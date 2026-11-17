@@ -11,7 +11,8 @@ import { pickBestCandidates, scoreCandidate } from '../utils/matching.js';
 import {
     decodeTortuga,
     parsePlayerJsSubtitles,
-    buildNuvioStream,
+    formatEpisodeTag,
+    makeUkStream,
     dedupeStreams,
 } from '../utils/playerjs.js';
 
@@ -97,22 +98,15 @@ async function searchUASerials(query) {
     return items;
 }
 
-function makeStream(dubTitle, url, subs, defaultTitle) {
-    const title = (dubTitle || defaultTitle || PROVIDER_NAME).trim();
-    const isSub = /субтитр/i.test(title);
-    const langLabel = isSub
-        ? 'Субтитри • uk'
-        : (subs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
-
-    return buildNuvioStream({
+function makeStream(dubTitle, url, subs, defaultTitle, metaCtx = {}) {
+    return makeUkStream({
         providerName: PROVIDER_NAME,
-        name: title,
-        title,
+        dubTitle: dubTitle || defaultTitle || PROVIDER_NAME,
         url,
-        quality: '1080p',
-        language: langLabel,
-        headers: { Referer: TORTUGA_REFERER },
-        subtitles: subs,
+        subs,
+        referer: TORTUGA_REFERER,
+        episodeTag: metaCtx.episodeTag || '',
+        siteTitle: metaCtx.siteTitle || '',
     });
 }
 
@@ -160,10 +154,14 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
 
     const decodedSub = decodePlayerField(extractSubField(playerHtml), true);
 
+    const episodeTag = formatEpisodeTag(isTv, season, episode);
+    const metaCtx = { episodeTag, siteTitle: pageTitle };
+
     if (!decodedFile.startsWith('[')) {
-        // Movie direct URL
+        // Movie direct URL: never return flat movie files for TV episode requests
+        if (isTv) return [];
         const subs = parsePlayerJsSubtitles(decodedSub);
-        const s = makeStream(translation || pageTitle, decodedFile, subs, pageTitle);
+        const s = makeStream(translation || pageTitle, decodedFile, subs, pageTitle, metaCtx);
         return s ? [s] : [];
     }
 
@@ -209,7 +207,7 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
 
                 if (!/^https?:\/\//i.test(streamUrl)) continue;
                 const mergedSubs = trackSubs.length > 0 ? trackSubs : baseSubs;
-                const s = makeStream(dubName, streamUrl, mergedSubs, pageTitle);
+                const s = makeStream(dubName, streamUrl, mergedSubs, pageTitle, metaCtx);
                 if (s) streams.push(s);
             }
         });

@@ -99,24 +99,43 @@ export function scoreCandidate(candidateTitle, meta, opts = {}) {
     const targetTitles = [];
     for (const t of rawTargets) {
         if (!t) continue;
-        targetTitles.push(t);
+        targetTitles.push({ text: t, isColonPrefix: false });
         if (t.includes(':')) {
             const prefix = t.split(':')[0].trim();
-            if (prefix.length >= 5) targetTitles.push(prefix);
+            if (prefix.length >= 5) targetTitles.push({ text: prefix, isColonPrefix: true });
         }
     }
 
     if (targetTitles.length === 0) return -1;
 
-    // Reject obvious non-matching season markers in title if searching for a specific season > 1
-    // or reject "трейлер" / "анонс"
     const lowerRaw = candidateTitle.toLowerCase();
     if (/\b(трейлер|анонс|тізер|trailer)\b/i.test(lowerRaw)) return -1;
 
-    let bestTitleScore = 0;
+    // Reject explicit movie/film markers when searching for a TV series (unless TMDB title itself has them)
+    const joinedTargetsLower = rawTargets.join(' ').toLowerCase();
+    if (isTv && /\b(фільм\s*\d*|movie)\b/i.test(lowerRaw) && !/\b(фільм|movie)\b/i.test(joinedTargetsLower)) {
+        return -1;
+    }
 
-    for (const target of targetTitles) {
-        const normTarget = normalizeText(target);
+    // Strict season check when candidate title explicitly mentions a season number
+    let matchedExplicitSeason = false;
+    if (isTv && season != null) {
+        const seasonMatch = lowerRaw.match(/(?:(\d+)\s*сезон|сезон\s*(\d+)|season\s*(\d+))/i);
+        if (seasonMatch) {
+            const pageSeason = parseInt(seasonMatch[1] || seasonMatch[2] || seasonMatch[3], 10);
+            if (pageSeason !== Number(season)) {
+                return -1;
+            }
+            matchedExplicitSeason = true;
+        }
+    }
+
+    const effectiveYear = candidateYear || parsed.year;
+    let bestTitleScore = 0;
+    let matchedSingleTokenWithExtra = false;
+
+    for (const targetObj of targetTitles) {
+        const normTarget = normalizeText(targetObj.text);
         if (!normTarget) continue;
         const targetTokens = normTarget.split(' ').filter(Boolean);
 
@@ -131,7 +150,11 @@ export function scoreCandidate(candidateTitle, meta, opts = {}) {
                 .trim();
 
             if (normCand === normTarget || normCandBase === normTarget) {
-                bestTitleScore = Math.max(bestTitleScore, 100);
+                const score = targetObj.isColonPrefix ? 75 : 100;
+                if (score > bestTitleScore) {
+                    bestTitleScore = score;
+                    matchedSingleTokenWithExtra = false;
+                }
                 continue;
             }
 
@@ -151,14 +174,23 @@ export function scoreCandidate(candidateTitle, meta, opts = {}) {
 
             if (coverageTarget >= 0.65 && coverageCand >= 0.5) {
                 const score = Math.round(coverageTarget * 60 + coverageCand * 30);
-                bestTitleScore = Math.max(bestTitleScore, score);
+                if (score > bestTitleScore) {
+                    bestTitleScore = score;
+                    matchedSingleTokenWithExtra = false;
+                }
             } else if (targetTokens.length === 1 && targetTokens[0].length >= 5 && candSet.has(targetTokens[0])) {
-                // Single distinctive keyword (e.g. "Фрірен" from "Фрірен: після кінця пригоди")
+                // Single distinctive keyword (e.g. "Фрірен" from "Фрірен: після кінця пригоди", or "Покемон")
                 const startsWithTarget = candTokens[0] === targetTokens[0];
                 const score = startsWithTarget ? 68 : Math.max(46, 58 - candTokens.length * 2);
-                bestTitleScore = Math.max(bestTitleScore, score);
-            } else if (targetTokens.length === 1 && candTokens[0] === targetTokens[0] && candTokens.length <= 3) {
-                bestTitleScore = Math.max(bestTitleScore, 55);
+                if (score > bestTitleScore) {
+                    bestTitleScore = score;
+                    matchedSingleTokenWithExtra = candTokens.length > 1;
+                }
+            } else if (targetTokens.length === 1 && candTokens[0] === targetTokens[0] && candTokens.length <= 2) {
+                if (55 > bestTitleScore) {
+                    bestTitleScore = 55;
+                    matchedSingleTokenWithExtra = candTokens.length > 1;
+                }
             }
         }
     }
@@ -168,30 +200,26 @@ export function scoreCandidate(candidateTitle, meta, opts = {}) {
     let finalScore = bestTitleScore;
 
     // Year verification if both are available
-    const effectiveYear = candidateYear || parsed.year;
     if (meta.year && effectiveYear) {
         const diff = Math.abs(meta.year - effectiveYear);
-        if (diff === 0) finalScore += 25;
-        else if (diff === 1) finalScore += 10;
-        else if (diff > 2 && !isTv) {
-            // Movies with >2 year gap are almost certainly remakes or wrong titles
+        if (diff === 0) {
+            finalScore += 25;
+        } else if (diff === 1) {
+            finalScore += 10;
+        } else if (diff > 2 && !isTv) {
             return -1;
-        } else if (diff > 5 && isTv) {
-            finalScore -= 20;
+        } else if (diff > 4 && isTv && !matchedExplicitSeason) {
+            // Reject spin-offs / movies with completely different release year (e.g. Pokemon 1997 vs 2022)
+            return -1;
         }
+    } else if (matchedSingleTokenWithExtra && !matchedExplicitSeason && bestTitleScore < 75) {
+        // Without matching year or explicit season, a 1-word title matching a longer multi-word title
+        // is likely a spin-off or movie (e.g. "Покемон" -> "Покемон: Хроніки Аркеуса")
+        if (isTv) return -1;
     }
 
-    // Season match boost if page title explicitly names a season (common on uakino/eneyida)
-    if (isTv && season != null) {
-        const seasonMatch = lowerRaw.match(/(?:(\d+)\s*сезон|сезон\s*(\d+)|season\s*(\d+))/i);
-        if (seasonMatch) {
-            const pageSeason = parseInt(seasonMatch[1] || seasonMatch[2] || seasonMatch[3], 10);
-            if (pageSeason === Number(season)) {
-                finalScore += 30;
-            } else {
-                finalScore -= 35;
-            }
-        }
+    if (matchedExplicitSeason) {
+        finalScore += 30;
     }
 
     return finalScore;

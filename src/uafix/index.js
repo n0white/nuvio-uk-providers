@@ -9,7 +9,8 @@ import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
 import {
     parsePlayerJsSubtitles,
-    buildNuvioStream,
+    formatEpisodeTag,
+    makeUkStream,
     dedupeStreams,
 } from '../utils/playerjs.js';
 
@@ -81,27 +82,19 @@ async function searchUAFlix(query) {
     return items;
 }
 
-function makeStream(dubTitle, url, rawSub, referer, defaultTitle) {
-    const title = (dubTitle || defaultTitle || PROVIDER_NAME).trim();
-    const subs = parsePlayerJsSubtitles(rawSub);
-    const isSub = /субтитр/i.test(title);
-    const langLabel = isSub
-        ? 'Субтитри • uk'
-        : (subs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
-
-    return buildNuvioStream({
+function makeStream(dubTitle, url, rawSub, referer, defaultTitle, metaCtx = {}) {
+    return makeUkStream({
         providerName: PROVIDER_NAME,
-        name: title,
-        title,
+        dubTitle: dubTitle || defaultTitle || PROVIDER_NAME,
         url,
-        quality: '1080p',
-        language: langLabel,
-        headers: { Referer: referer },
-        subtitles: subs,
+        rawSub,
+        referer,
+        episodeTag: metaCtx.episodeTag || '',
+        siteTitle: metaCtx.siteTitle || defaultTitle || '',
     });
 }
 
-async function extractFromPlayerUrl(playerUrl, pageUrl, isTv, season, episode, fallbackTitle) {
+async function extractFromPlayerUrl(playerUrl, pageUrl, isTv, season, episode, fallbackTitle, metaCtx = {}) {
     const fixedPlayer = ensureUrl(playerUrl, MAIN_URL);
     if (!fixedPlayer || /youtube\.com|youtu\.be/i.test(fixedPlayer)) return [];
 
@@ -117,20 +110,20 @@ async function extractFromPlayerUrl(playerUrl, pageUrl, isTv, season, episode, f
     const referer = getPlayerReferer(fixedPlayer);
     const streams = [];
 
-    if (!isTv || fixedPlayer.includes('/vod/')) {
+    if (!isTv) {
         if (rawFile.startsWith('[')) {
             try {
                 const dubs = JSON.parse(rawFile);
                 for (const dub of dubs) {
                     if (dub && dub.file) {
-                        const s = makeStream(dub.title, dub.file, dub.subtitle, referer, fallbackTitle);
+                        const s = makeStream(dub.title, dub.file, dub.subtitle, referer, fallbackTitle, metaCtx);
                         if (s) streams.push(s);
                     }
                 }
             } catch (_) {}
         } else if (/^https?:\/\//i.test(rawFile)) {
             const subRaw = extractUAFlixSubtitle(playerHtml);
-            const s = makeStream(`Озвучення (${PROVIDER_NAME})`, rawFile, subRaw, referer, PROVIDER_NAME);
+            const s = makeStream(`Озвучення (${PROVIDER_NAME})`, rawFile, subRaw, referer, fallbackTitle, metaCtx);
             if (s) streams.push(s);
         }
         return dedupeStreams(streams);
@@ -152,7 +145,7 @@ async function extractFromPlayerUrl(playerUrl, pageUrl, isTv, season, episode, f
             for (const ep of (sItem.folder || [])) {
                 const eNum = extractAllNumbers(ep.title)[0];
                 if (eNum === targetE && ep.file) {
-                    const s = makeStream(dubTitle, ep.file, ep.subtitle, referer, fallbackTitle);
+                    const s = makeStream(dubTitle, ep.file, ep.subtitle, referer, fallbackTitle, metaCtx);
                     if (s) streams.push(s);
                 }
             }
@@ -163,6 +156,7 @@ async function extractFromPlayerUrl(playerUrl, pageUrl, isTv, season, episode, f
 }
 
 async function extractFromPage(candidate, meta, isTv, season, episode) {
+    if (isTv && /\/(film|cartoons)\//i.test(candidate.href)) return [];
     const html = await fetchText(candidate.href, { headers: { Referer: `${MAIN_URL}/` }, timeoutMs: 12000 });
     if (!html) return [];
 
@@ -193,8 +187,13 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
         MAIN_URL
     );
 
+    const metaCtx = {
+        episodeTag: formatEpisodeTag(isTv, season, episode),
+        siteTitle: pageTitle,
+    };
+
     if (playerUrl && !/youtube\.com|youtu\.be/i.test(playerUrl)) {
-        const streams = await extractFromPlayerUrl(playerUrl, candidate.href, isTv, season, episode, pageTitle);
+        const streams = await extractFromPlayerUrl(playerUrl, candidate.href, isTv, season, episode, pageTitle, metaCtx);
         if (streams.length > 0) return streams;
     }
 
@@ -231,7 +230,7 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
                     MAIN_URL
                 );
                 if (epPlayerUrl) {
-                    return extractFromPlayerUrl(epPlayerUrl, matchedEpHref, false, null, null, pageTitle);
+                    return extractFromPlayerUrl(epPlayerUrl, matchedEpHref, false, null, null, pageTitle, metaCtx);
                 }
             }
         }

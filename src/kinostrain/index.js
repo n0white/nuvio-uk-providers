@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 import { fetchText, fetchJson, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
-import { extractFileValue, extractPlayerJsSubtitleRaw, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { extractFileValue, extractPlayerJsSubtitleRaw, formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://kinostrain.com';
 const SEARCH_API = 'https://api.kinostrain.com/api/search';
@@ -82,7 +82,7 @@ function extractNuxtSources(html, isTv, targetSeason, targetEpisode) {
     return sources;
 }
 
-async function resolveKinostrainSource(src) {
+async function resolveKinostrainSource(src, metaCtx = {}) {
     if (src.link.includes('ashdi.vip')) {
         const html = await fetchText(src.link, { headers: { Referer: `${MAIN_URL}/` }, timeoutMs: 12000 });
         if (!html) return null;
@@ -95,6 +95,8 @@ async function resolveKinostrainSource(src) {
             url: file,
             rawSub: subRaw,
             referer: src.link,
+            episodeTag: metaCtx.episodeTag || '',
+            siteTitle: metaCtx.siteTitle || '',
         });
     }
     return makeUkStream({
@@ -102,6 +104,8 @@ async function resolveKinostrainSource(src) {
         dubTitle: src.name,
         url: src.link,
         referer: `${MAIN_URL}/`,
+        episodeTag: metaCtx.episodeTag || '',
+        siteTitle: metaCtx.siteTitle || '',
     });
 }
 
@@ -160,7 +164,11 @@ async function getStreams(tmdbId, mediaType, season, episode) {
             const sources = extractNuxtSources(html, isTv, effSeason, effEpisode);
             if (sources.length === 0) continue;
 
-            const resolved = await Promise.all(sources.slice(0, 8).map(resolveKinostrainSource));
+            const metaCtx = {
+                episodeTag: formatEpisodeTag(isTv, effSeason, effEpisode),
+                siteTitle: candidate.title,
+            };
+            const resolved = await Promise.all(sources.slice(0, 8).map(s => resolveKinostrainSource(s, metaCtx)));
             const streams = dedupeStreams(resolved.filter(Boolean));
             if (streams.length > 0) return streams;
         }

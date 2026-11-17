@@ -7,7 +7,15 @@ const cheerio = require('cheerio');
 import { fetchText, fetchJson, postFormText, ensureUrl, extractDleHash } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate } from '../utils/matching.js';
-import { buildNuvioStream, dedupeStreams, extractPlayerJsFiles, extractPlayerJsSubtitleRaw, parsePlayerJsSubtitles, resolvePlayerJsUrls } from '../utils/playerjs.js';
+import {
+    formatEpisodeTag,
+    makeUkStream,
+    dedupeStreams,
+    extractPlayerJsFiles,
+    extractPlayerJsSubtitleRaw,
+    parsePlayerJsSubtitles,
+    resolvePlayerJsUrls,
+} from '../utils/playerjs.js';
 import { extractAshdi, extractMoon, extractFenix, extractCsst } from '../utils/anime-extractors.js';
 
 const MAIN_URL = 'https://anitube.in.ua';
@@ -198,45 +206,57 @@ function cleanPlayerName(raw) {
 
 function formatItemLabel(item) {
     const player = cleanPlayerName(item.playerName);
-    const studio = String(item.studioName || '').trim();
-    const isGenericStudio = !studio || /^(озвучення|субтитри)$/i.test(studio);
-    if (!isGenericStudio && studio.toLowerCase() !== player.toLowerCase()) {
+    let studio = String(item.studioName || '').trim().replace(/^\s*плеєр\s+/i, '').trim();
+    if (/^(ashdi|ahdi)$/i.test(studio)) studio = 'Ashdi';
+    else if (/^moon$/i.test(studio)) studio = 'Moon';
+    else if (/^fenix$/i.test(studio)) studio = 'Fenix';
+    else if (/^trg$/i.test(studio)) studio = 'Tortuga';
+
+    const isGenericStudio = !studio || /^(озвучення|субтитри|плеєр)$/i.test(studio);
+    const isGenericPlayer = !player || /^(плеєр)$/i.test(player);
+    if (!isGenericStudio && !isGenericPlayer && studio.toLowerCase() !== player.toLowerCase()) {
         return `${studio} (${player})`;
     }
-    return item.isDub ? `Озвучення (${player})` : `Субтитри (${player})`;
+    const base = !isGenericStudio ? studio : (!isGenericPlayer ? player : '');
+    if (base) {
+        return item.isDub ? `Озвучення (${base})` : `Субтитри (${base})`;
+    }
+    return item.isDub ? 'Озвучення' : 'Субтитри';
 }
 
-async function resolveItemStreams(item) {
+async function resolveItemStreams(item, metaCtx = {}) {
     const rawUrl = ensureUrl(item.url, MAIN_URL);
     if (!rawUrl || rawUrl.includes('video.ufdub')) return [];
 
     const label = formatItemLabel(item);
-    const langLabel = item.isDub ? 'Озвучення • uk' : 'Субтитри • uk';
+    const episodeTag = metaCtx.episodeTag || '';
+    const siteTitle = metaCtx.siteTitle || '';
 
     if (rawUrl.includes('ashdi.vip')) {
-        return extractAshdi(rawUrl, label, PROVIDER_NAME, 'https://qeruya.cyou/', item.isDub);
+        return extractAshdi(rawUrl, label, PROVIDER_NAME, 'https://qeruya.cyou/', item.isDub, metaCtx);
     }
     if (rawUrl.includes('moonanime')) {
-        return extractMoon(rawUrl, label, PROVIDER_NAME, item.isDub);
+        return extractMoon(rawUrl, label, PROVIDER_NAME, item.isDub, metaCtx);
     }
     if (rawUrl.includes('fenixplay')) {
-        return extractFenix(rawUrl, label, item.episodeNum, PROVIDER_NAME, item.isDub);
+        return extractFenix(rawUrl, label, item.episodeNum, PROVIDER_NAME, item.isDub, metaCtx);
     }
     if (
         rawUrl.includes('csst.online/embed/') ||
         rawUrl.includes('monstro.site/embed/') ||
         rawUrl.includes('monstro.online/embed/')
     ) {
-        return extractCsst(rawUrl, label, PROVIDER_NAME, item.isDub);
+        return extractCsst(rawUrl, label, PROVIDER_NAME, item.isDub, metaCtx);
     }
     if (rawUrl.includes('udrop.com')) {
-        const s = buildNuvioStream({
+        const s = makeUkStream({
             providerName: PROVIDER_NAME,
-            name: label,
-            title: label,
+            dubTitle: label,
             url: rawUrl,
             quality: 'Auto',
-            language: langLabel,
+            isSub: !item.isDub,
+            episodeTag,
+            siteTitle,
         });
         return s ? [s] : [];
     }
@@ -250,18 +270,16 @@ async function resolveItemStreams(item) {
             }
         }
         const subs = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
-        const finalLang = !item.isDub
-            ? 'Субтитри • uk'
-            : (subs.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
-        return urls.map(u => buildNuvioStream({
+        return urls.map(u => makeUkStream({
             providerName: PROVIDER_NAME,
-            name: label,
-            title: label,
+            dubTitle: label,
             url: u,
+            subs,
+            referer: rawUrl,
             quality: '1080p',
-            language: finalLang,
-            headers: { Referer: rawUrl },
-            subtitles: subs,
+            isSub: !item.isDub,
+            episodeTag,
+            siteTitle,
         })).filter(Boolean);
     }
     return [];
@@ -343,8 +361,12 @@ async function extractFromPage(candidate, meta, isTv, season, episode) {
     if (targetItems.length === 0) return [];
 
     // Limit concurrent/total external player requests so we stay well within 60s timeout
+    const metaCtx = {
+        episodeTag: formatEpisodeTag(isTv, season, episode),
+        siteTitle: pageTitle,
+    };
     const capped = targetItems.slice(0, 8);
-    const results = await Promise.all(capped.map(it => resolveItemStreams(it)));
+    const results = await Promise.all(capped.map(it => resolveItemStreams(it, metaCtx)));
     return dedupeStreams(results.flat());
 }
 

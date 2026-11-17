@@ -11,7 +11,7 @@ import {
     extractPlayerJsSubtitleRaw,
     parsePlayerJsSubtitles,
     fetchHlsSubtitles,
-    buildNuvioStream,
+    makeUkStream,
 } from './playerjs.js';
 
 const MOON_REFERER = 'https://moonanime.art/';
@@ -33,16 +33,10 @@ function markForcedSubtitle(label, isForced) {
     return `${label} (форсовані)`;
 }
 
-function buildLanguageLabel(isDub, subtitles) {
-    const hasSubs = Array.isArray(subtitles) && subtitles.length > 0;
-    if (isDub === false) return 'Субтитри • uk';
-    return hasSubs ? 'Озвучення (+суб) • uk' : 'Озвучення • uk';
-}
-
 /**
  * Extracts stream + subtitles from ashdi.vip embed/vod URL.
  */
-export async function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride, isDub = true) {
+export async function extractAshdi(iframeUrl, sourceLabel, providerName, refererOverride, isDub = true, metaCtx = {}) {
     const fixedUrl = ensureUrl(iframeUrl).replace('/embed/', '/vod/');
     if (!fixedUrl) return [];
 
@@ -65,16 +59,16 @@ export async function extractAshdi(iframeUrl, sourceLabel, providerName, referer
     }
 
     const cleanSubs = distinctSubtitles(subtitles);
-    const stream = buildNuvioStream({
+    const stream = makeUkStream({
         providerName,
-        name: sourceLabel,
-        title: sourceLabel,
+        dubTitle: sourceLabel,
         url: fileUrl,
+        subs: cleanSubs,
+        referer: playReferer,
         quality: '1080p',
-        language: buildLanguageLabel(isDub, cleanSubs),
-        headers: { Referer: playReferer },
-        subtitles: cleanSubs,
-        type: 'hls',
+        episodeTag: metaCtx.episodeTag || '',
+        siteTitle: metaCtx.siteTitle || '',
+        isSub: isDub === false,
     });
     return stream ? [stream] : [];
 }
@@ -167,7 +161,7 @@ async function resolveMoonContent(contentUrl) {
 /**
  * Extracts stream(s) + subtitles from moonanime.art / moonanime.net iframe URL.
  */
-export async function extractMoon(iframeUrl, sourceLabel, providerName, isDub = true) {
+export async function extractMoon(iframeUrl, sourceLabel, providerName, isDub = true, metaCtx = {}) {
     const cleanUrl = ensureUrl(iframeUrl)
         .replace(/[?&]player=[^&]*/g, '')
         .replace('?&', '?')
@@ -249,15 +243,16 @@ export async function extractMoon(iframeUrl, sourceLabel, providerName, isDub = 
                 qUrl = (await resolveMoonContent(qUrl)) || '';
             }
             if (!qUrl) continue;
-            const s = buildNuvioStream({
+            const s = makeUkStream({
                 providerName,
-                name: sourceLabel,
-                title: sourceLabel,
+                dubTitle: sourceLabel,
                 url: qUrl,
+                subs: subtitles,
                 quality: qLabel,
-                language: buildLanguageLabel(isDub, subtitles),
                 headers: moonHeaders,
-                subtitles,
+                episodeTag: metaCtx.episodeTag || '',
+                siteTitle: metaCtx.siteTitle || '',
+                isSub: isDub === false,
             });
             if (s) streams.push(s);
         }
@@ -267,15 +262,16 @@ export async function extractMoon(iframeUrl, sourceLabel, providerName, isDub = 
             finalUrl = (await resolveMoonContent(finalUrl)) || '';
         }
         if (finalUrl) {
-            const s = buildNuvioStream({
+            const s = makeUkStream({
                 providerName,
-                name: sourceLabel,
-                title: sourceLabel,
+                dubTitle: sourceLabel,
                 url: finalUrl,
+                subs: subtitles,
                 quality: '1080p',
-                language: buildLanguageLabel(isDub, subtitles),
                 headers: moonHeaders,
-                subtitles,
+                episodeTag: metaCtx.episodeTag || '',
+                siteTitle: metaCtx.siteTitle || '',
+                isSub: isDub === false,
             });
             if (s) streams.push(s);
         }
@@ -331,7 +327,7 @@ function authorizeFenixUrl(url, mediaAccess) {
 /**
  * Extracts streams + subtitles from fenixplay.xyz embed URL.
  */
-export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName, isDub = true) {
+export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, providerName, isDub = true, metaCtx = {}) {
     const fixedUrl = ensureUrl(iframeUrl);
     if (!fixedUrl) return [];
 
@@ -382,16 +378,16 @@ export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, provid
         if (!authorized || seenUrls.has(authorized)) return;
         seenUrls.add(authorized);
         const title = label && label !== sourceLabel ? `${sourceLabel} — ${label}` : sourceLabel;
-        const s = buildNuvioStream({
+        const s = makeUkStream({
             providerName,
-            name: title,
-            title,
+            dubTitle: title,
             url: authorized,
+            subs: subtitles,
+            referer: FENIX_REFERER,
             quality: '1080p',
-            language: buildLanguageLabel(isDub, subtitles),
-            headers: { Referer: FENIX_REFERER },
-            subtitles,
-            type: 'hls',
+            episodeTag: metaCtx.episodeTag || '',
+            siteTitle: metaCtx.siteTitle || '',
+            isSub: isDub === false,
         });
         if (s) streams.push(s);
     };
@@ -407,7 +403,7 @@ export async function extractFenix(iframeUrl, sourceLabel, episodeNumber, provid
 /**
  * Extracts quality streams + subtitles from csst.online / monstro.* embeds.
  */
-export async function extractCsst(iframeUrl, sourceLabel, providerName, isDub = true) {
+export async function extractCsst(iframeUrl, sourceLabel, providerName, isDub = true, metaCtx = {}) {
     const fixedUrl = ensureUrl(iframeUrl);
     if (!fixedUrl) return [];
 
@@ -431,15 +427,16 @@ export async function extractCsst(iframeUrl, sourceLabel, providerName, isDub = 
         const quality = bracketMatch ? bracketMatch[1] : 'Auto';
         const url = bracketMatch ? bracketMatch[2].trim() : trimmed;
         if (!/^https?:\/\//i.test(url)) continue;
-        const s = buildNuvioStream({
+        const s = makeUkStream({
             providerName,
-            name: sourceLabel,
-            title: sourceLabel,
+            dubTitle: sourceLabel,
             url,
+            subs: subtitles,
+            referer: fixedUrl,
             quality,
-            language: buildLanguageLabel(isDub, subtitles),
-            headers: { Referer: fixedUrl },
-            subtitles,
+            episodeTag: metaCtx.episodeTag || '',
+            siteTitle: metaCtx.siteTitle || '',
+            isSub: isDub === false,
         });
         if (s) streams.push(s);
     }

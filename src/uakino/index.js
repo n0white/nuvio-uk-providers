@@ -22,7 +22,8 @@ import {
     extractPlayerJsSubtitleRaw,
     parsePlayerJsSubtitles,
     resolvePlayerJsUrls,
-    buildNuvioStream,
+    formatEpisodeTag,
+    makeUkStream,
     dedupeStreams,
 } from '../utils/playerjs.js';
 
@@ -200,7 +201,7 @@ function extractInlinePlayerUrls($, cfg) {
     return urls;
 }
 
-async function resolveUakinoPlayer(playerUrl, sourceLabel, cfg) {
+async function resolveUakinoPlayer(playerUrl, sourceLabel, cfg, metaCtx = {}) {
     const normalized = ensureUrl(playerUrl, cfg.baseUrl);
     if (!normalized) return [];
 
@@ -222,21 +223,17 @@ async function resolveUakinoPlayer(playerUrl, sourceLabel, cfg) {
     const subtitles = parsePlayerJsSubtitles(extractPlayerJsSubtitleRaw(html));
     const referer = selectPlayerReferer(normalized, `${cfg.baseUrl}/`);
     const label = (sourceLabel || PROVIDER_NAME).trim();
-    const isSub = /субтитр/i.test(label);
-    const langLabel = isSub
-        ? 'Субтитри • uk'
-        : (subtitles.length > 0 ? 'Озвучення (+суб) • uk' : 'Озвучення • uk');
 
     return streamUrls.map(url =>
-        buildNuvioStream({
+        makeUkStream({
             providerName: PROVIDER_NAME,
-            name: label,
-            title: label,
+            dubTitle: label,
             url,
+            subs: subtitles,
+            referer,
             quality: '1080p',
-            language: langLabel,
-            headers: referer ? { Referer: referer } : {},
-            subtitles,
+            episodeTag: metaCtx.episodeTag || '',
+            siteTitle: metaCtx.siteTitle || '',
         })
     ).filter(Boolean);
 }
@@ -344,25 +341,33 @@ async function extractFromPage(candidate, meta, isTv, season, episode, cfg) {
         }
     }
 
+    const metaCtx = {
+        episodeTag: formatEpisodeTag(isTv, season, episode),
+        siteTitle: pageTitle,
+    };
+
     if (playersToResolve.length > 0) {
         const resolved = await Promise.all(
-            playersToResolve.slice(0, 8).map(p => resolveUakinoPlayer(p.url, p.label, cfg))
+            playersToResolve.slice(0, 8).map(p => resolveUakinoPlayer(p.url, p.label, cfg, metaCtx))
         );
         const streams = dedupeStreams(resolved.flat());
         if (streams.length > 0) return streams;
     }
 
-    // Fallback: direct `file:` embedded on detail page
+    // Fallback: direct `file:` embedded on detail page (movies only)
+    if (isTv) return [];
     const pageFiles = extractPlayerJsFiles(html);
     const fallbackStreams = [];
     for (const rf of pageFiles) {
         for (const u of resolvePlayerJsUrls(rf)) {
-            const s = buildNuvioStream({
+            const s = makeUkStream({
                 providerName: PROVIDER_NAME,
-                title: pageTitle,
+                dubTitle: pageTitle,
                 url: u,
+                referer: `${cfg.baseUrl}/`,
                 quality: '1080p',
-                headers: { Referer: `${cfg.baseUrl}/` },
+                episodeTag: metaCtx.episodeTag,
+                siteTitle: pageTitle,
             });
             if (s) fallbackStreams.push(s);
         }

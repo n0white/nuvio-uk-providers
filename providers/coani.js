@@ -1,6 +1,6 @@
 /**
  * coani - Nuvio UK Provider (from cloudstream-extensions-uk)
- * Generated: 2026-11-17T00:13:51.528Z
+ * Generated: 2026-11-17T00:22:50.520Z
  */
 var __provider = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -423,18 +423,35 @@ var __provider = (() => {
     const targetTitles = [];
     for (const t of rawTargets) {
       if (!t) continue;
-      targetTitles.push(t);
+      targetTitles.push({ text: t, isColonPrefix: false });
       if (t.includes(":")) {
         const prefix = t.split(":")[0].trim();
-        if (prefix.length >= 5) targetTitles.push(prefix);
+        if (prefix.length >= 5) targetTitles.push({ text: prefix, isColonPrefix: true });
       }
     }
     if (targetTitles.length === 0) return -1;
     const lowerRaw = candidateTitle.toLowerCase();
     if (/\b(трейлер|анонс|тізер|trailer)\b/i.test(lowerRaw)) return -1;
+    const joinedTargetsLower = rawTargets.join(" ").toLowerCase();
+    if (isTv && /\b(фільм\s*\d*|movie)\b/i.test(lowerRaw) && !/\b(фільм|movie)\b/i.test(joinedTargetsLower)) {
+      return -1;
+    }
+    let matchedExplicitSeason = false;
+    if (isTv && season != null) {
+      const seasonMatch = lowerRaw.match(/(?:(\d+)\s*сезон|сезон\s*(\d+)|season\s*(\d+))/i);
+      if (seasonMatch) {
+        const pageSeason = parseInt(seasonMatch[1] || seasonMatch[2] || seasonMatch[3], 10);
+        if (pageSeason !== Number(season)) {
+          return -1;
+        }
+        matchedExplicitSeason = true;
+      }
+    }
+    const effectiveYear = candidateYear || parsed.year;
     let bestTitleScore = 0;
-    for (const target of targetTitles) {
-      const normTarget = normalizeText(target);
+    let matchedSingleTokenWithExtra = false;
+    for (const targetObj of targetTitles) {
+      const normTarget = normalizeText(targetObj.text);
       if (!normTarget) continue;
       const targetTokens = normTarget.split(" ").filter(Boolean);
       for (const cand of candidateVariants) {
@@ -442,7 +459,11 @@ var __provider = (() => {
         if (!normCand) continue;
         const normCandBase = normCand.replace(/\b(\d+\s*сезон|сезон\s*\d+|season\s*\d+|s\d+)\b/gi, "").replace(/\s+/g, " ").trim();
         if (normCand === normTarget || normCandBase === normTarget) {
-          bestTitleScore = Math.max(bestTitleScore, 100);
+          const score = targetObj.isColonPrefix ? 75 : 100;
+          if (score > bestTitleScore) {
+            bestTitleScore = score;
+            matchedSingleTokenWithExtra = false;
+          }
           continue;
         }
         const candTokens = (normCandBase || normCand).split(" ").filter(Boolean);
@@ -457,39 +478,43 @@ var __provider = (() => {
         const coverageCand = overlap / candSet.size;
         if (coverageTarget >= 0.65 && coverageCand >= 0.5) {
           const score = Math.round(coverageTarget * 60 + coverageCand * 30);
-          bestTitleScore = Math.max(bestTitleScore, score);
+          if (score > bestTitleScore) {
+            bestTitleScore = score;
+            matchedSingleTokenWithExtra = false;
+          }
         } else if (targetTokens.length === 1 && targetTokens[0].length >= 5 && candSet.has(targetTokens[0])) {
           const startsWithTarget = candTokens[0] === targetTokens[0];
           const score = startsWithTarget ? 68 : Math.max(46, 58 - candTokens.length * 2);
-          bestTitleScore = Math.max(bestTitleScore, score);
-        } else if (targetTokens.length === 1 && candTokens[0] === targetTokens[0] && candTokens.length <= 3) {
-          bestTitleScore = Math.max(bestTitleScore, 55);
+          if (score > bestTitleScore) {
+            bestTitleScore = score;
+            matchedSingleTokenWithExtra = candTokens.length > 1;
+          }
+        } else if (targetTokens.length === 1 && candTokens[0] === targetTokens[0] && candTokens.length <= 2) {
+          if (55 > bestTitleScore) {
+            bestTitleScore = 55;
+            matchedSingleTokenWithExtra = candTokens.length > 1;
+          }
         }
       }
     }
     if (bestTitleScore < 45) return -1;
     let finalScore = bestTitleScore;
-    const effectiveYear = candidateYear || parsed.year;
     if (meta.year && effectiveYear) {
       const diff = Math.abs(meta.year - effectiveYear);
-      if (diff === 0) finalScore += 25;
-      else if (diff === 1) finalScore += 10;
-      else if (diff > 2 && !isTv) {
+      if (diff === 0) {
+        finalScore += 25;
+      } else if (diff === 1) {
+        finalScore += 10;
+      } else if (diff > 2 && !isTv) {
         return -1;
-      } else if (diff > 5 && isTv) {
-        finalScore -= 20;
+      } else if (diff > 4 && isTv && !matchedExplicitSeason) {
+        return -1;
       }
+    } else if (matchedSingleTokenWithExtra && !matchedExplicitSeason && bestTitleScore < 75) {
+      if (isTv) return -1;
     }
-    if (isTv && season != null) {
-      const seasonMatch = lowerRaw.match(/(?:(\d+)\s*сезон|сезон\s*(\d+)|season\s*(\d+))/i);
-      if (seasonMatch) {
-        const pageSeason = parseInt(seasonMatch[1] || seasonMatch[2] || seasonMatch[3], 10);
-        if (pageSeason === Number(season)) {
-          finalScore += 30;
-        } else {
-          finalScore -= 35;
-        }
-      }
+    if (matchedExplicitSeason) {
+      finalScore += 30;
     }
     return finalScore;
   }
@@ -602,16 +627,43 @@ var __provider = (() => {
     }
     return out;
   }
-  function makeUkStream({ providerName, dubTitle, url, rawSub = "", subs = null, referer = "", quality = "1080p", headers = {} }) {
-    const title = (dubTitle || providerName || "Stream").trim();
+  function formatEpisodeTag(isTv, season, episode) {
+    if (!isTv) return "";
+    const s = parseInt(season, 10);
+    const e = parseInt(episode, 10);
+    if (!Number.isFinite(s) || !Number.isFinite(e)) return "";
+    return `S${s}E${e}`;
+  }
+  function truncateLabel(str, maxLen = 36) {
+    const clean = String(str || "").replace(/\s+/g, " ").trim();
+    if (!clean) return "";
+    return clean.length > maxLen ? clean.slice(0, maxLen - 1).trimEnd() + "\u2026" : clean;
+  }
+  function makeUkStream({
+    providerName,
+    dubTitle,
+    url,
+    rawSub = "",
+    subs = null,
+    referer = "",
+    quality = "1080p",
+    headers = {},
+    episodeTag = "",
+    siteTitle = "",
+    isSub: isSubOverride = null
+  }) {
+    const baseName = (dubTitle || providerName || "Stream").trim();
+    const displayName = episodeTag ? `${episodeTag} \u2022 ${baseName}` : baseName;
     const parsedSubs = Array.isArray(subs) ? subs : parsePlayerJsSubtitles(rawSub);
-    const isSub = /субтитр|\bsub\b/i.test(title);
-    const langLabel = isSub ? "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438 \u2022 uk" : parsedSubs.length > 0 ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431) \u2022 uk" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F \u2022 uk";
+    const isSub = isSubOverride !== null ? isSubOverride : /субтитр|\bsub\b/i.test(baseName);
+    const modeLabel = isSub ? "\u0421\u0443\u0431\u0442\u0438\u0442\u0440\u0438" : parsedSubs.length > 0 ? "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F (+\u0441\u0443\u0431)" : "\u041E\u0437\u0432\u0443\u0447\u0435\u043D\u043D\u044F";
+    const shortSite = truncateLabel(siteTitle);
+    const langLabel = shortSite ? `${modeLabel} \u2022 ${shortSite} \u2022 uk` : `${modeLabel} \u2022 uk`;
     const mergedHeaders = Object.assign({}, referer ? { Referer: referer } : {}, headers);
     return buildNuvioStream({
       providerName,
-      name: title,
-      title,
+      name: displayName,
+      title: displayName,
       url,
       quality,
       language: langLabel,
@@ -682,13 +734,15 @@ var __provider = (() => {
                   seasons.push({ num: sNum, href });
                 }
               });
-              const targetSeasonObj = seasons.find((s) => s.num === effSeason) || { num: 1, href: candidate.href };
+              const targetSeasonObj = seasons.find((s) => s.num === effSeason) || (!isTv || seasons.length === 0 && effSeason === 1 ? { num: 1, href: candidate.href } : null);
+              if (!targetSeasonObj) continue;
               const seasonSlug = targetSeasonObj.href.split("/").pop();
               const seasonRes = yield fetchJson(`${MAIN_URL}/api/public/film/season?slug=${encodeURIComponent(seasonSlug)}`, { timeoutMs: 1e4 });
               const seasonId = seasonRes && seasonRes.data && seasonRes.data.id;
               if (!seasonId) continue;
               const seriesRes = yield fetchJson(`${MAIN_URL}/api/public/film/season/${seasonId}/series`, { timeoutMs: 1e4 });
               const items = seriesRes && seriesRes.data || [];
+              const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
               const streams = [];
               for (const entry of items) {
                 const d = entry && entry.data;
@@ -699,7 +753,9 @@ var __provider = (() => {
                   providerName: PROVIDER_NAME,
                   dubTitle: d.voice_type || d.voiceType || PROVIDER_NAME,
                   url: d.video,
-                  referer: `${MAIN_URL}/`
+                  referer: `${MAIN_URL}/`,
+                  episodeTag,
+                  siteTitle: candidate.title
                 });
                 if (s) streams.push(s);
               }

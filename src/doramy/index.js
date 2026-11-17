@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 import { fetchText, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates, scoreCandidate, stripSeo } from '../utils/matching.js';
-import { makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 
 const MAIN_URL = 'https://doramy.world';
 const PROVIDER_NAME = 'DoramyWorld';
@@ -55,6 +55,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
         const candidates = pickBestCandidates(allFound, meta, { season: effSeason, isTv }, 3);
         for (const candidate of candidates) {
             if (Date.now() - start > 45000) break;
+            if (isTv && /\/film\//i.test(candidate.href)) continue;
             const html = await fetchText(candidate.href, { headers: { Referer: `${MAIN_URL}/` }, timeoutMs: 12000 });
             if (!html) continue;
 
@@ -83,7 +84,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
             const ashdiHtml = await fetchText(iframe, { headers: { Referer: `${MAIN_URL}/` }, timeoutMs: 12000 });
             if (!ashdiHtml) continue;
 
-            if (!isTv || iframe.includes('/vod/')) {
+            const episodeTag = formatEpisodeTag(isTv, effSeason, effEpisode);
+            if (!isTv || (iframe.includes('/vod/') && effSeason === 1 && effEpisode === 1)) {
                 const m = ashdiHtml.match(/(https?:\/\/[^'"]+\.m3u8[^'"]*)/);
                 if (m && m[1]) {
                     const s = makeUkStream({
@@ -91,6 +93,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                         dubTitle: `Озвучення (${PROVIDER_NAME})`,
                         url: m[1],
                         referer: ASHDI_REFERER,
+                        episodeTag,
+                        siteTitle: pageTitle,
                     });
                     if (s) return [s];
                 }
@@ -108,7 +112,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
             for (const group of groups) {
                 const groupTitle = (group && group.title) || PROVIDER_NAME;
                 const seasons = group.folder || [];
-                const targetSeasonObj = seasons[effSeason - 1] || seasons[0];
+                const targetSeasonObj = seasons.find(s => extractInt(s.title) === effSeason)
+                    || (seasons.length >= effSeason ? seasons[effSeason - 1] : null);
                 if (!targetSeasonObj) continue;
 
                 const episodes = targetSeasonObj.folder || [targetSeasonObj];
@@ -120,6 +125,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                             dubTitle: groupTitle,
                             url: ep.file,
                             referer: ASHDI_REFERER,
+                            episodeTag,
+                            siteTitle: pageTitle,
                         });
                         if (s) streams.push(s);
                     }

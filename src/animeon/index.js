@@ -6,23 +6,23 @@
 import { fetchJson, ensureUrl } from '../utils/http.js';
 import { getMediaMeta, isTvMediaType } from '../utils/metadata.js';
 import { pickBestCandidates } from '../utils/matching.js';
-import { makeUkStream, dedupeStreams } from '../utils/playerjs.js';
+import { formatEpisodeTag, makeUkStream, dedupeStreams } from '../utils/playerjs.js';
 import { extractAshdi, extractMoon, extractFenix } from '../utils/anime-extractors.js';
 
 const MAIN_URL = 'https://animeon.club';
 const PROVIDER_NAME = 'AnimeON';
 
-async function resolveAnimeOnUrl(rawUrl, label, isDub, episodeNum) {
+async function resolveAnimeOnUrl(rawUrl, label, isDub, episodeNum, metaCtx = {}) {
     const url = ensureUrl(rawUrl, MAIN_URL);
     if (!url) return [];
     if (url.includes('ashdi.vip')) {
-        return extractAshdi(url, label, PROVIDER_NAME, 'https://ashdi.vip/', isDub);
+        return extractAshdi(url, label, PROVIDER_NAME, 'https://ashdi.vip/', isDub, metaCtx);
     }
     if (url.includes('moonanime')) {
-        return extractMoon(url, label, PROVIDER_NAME, isDub);
+        return extractMoon(url, label, PROVIDER_NAME, isDub, metaCtx);
     }
     if (url.includes('fenixplay')) {
-        return extractFenix(url, label, episodeNum || 1, PROVIDER_NAME, isDub);
+        return extractFenix(url, label, episodeNum || 1, PROVIDER_NAME, isDub, metaCtx);
     }
     if (/\.m3u8|\.mp4/i.test(url)) {
         const s = makeUkStream({
@@ -30,6 +30,9 @@ async function resolveAnimeOnUrl(rawUrl, label, isDub, episodeNum) {
             dubTitle: label,
             url,
             referer: `${MAIN_URL}/`,
+            isSub: !isDub,
+            episodeTag: metaCtx.episodeTag || '',
+            siteTitle: metaCtx.siteTitle || '',
         });
         return s ? [s] : [];
     }
@@ -97,6 +100,10 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                 }
             }
 
+            const metaCtx = {
+                episodeTag: formatEpisodeTag(isTv, effSeason, effEpisode),
+                siteTitle: candidate.title,
+            };
             const limitedTasks = tasks.slice(0, 8);
             const streamArrays = await Promise.all(limitedTasks.map(async (t) => {
                 let videoUrl = '';
@@ -111,12 +118,12 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                         videoUrl = (epDetail && (epDetail.videoUrl || epDetail.fileUrl)) || '';
                     }
                 }
-                if (!videoUrl && (!isTv || t.episodesCount === 0)) {
+                if (!videoUrl && (!isTv || (t.episodesCount === 0 && effSeason === 1 && effEpisode === 1))) {
                     const direct = await fetchJson(`${MAIN_URL}/api/player/${t.plId}/${t.trId}`, { timeoutMs: 10000 });
                     videoUrl = (direct && (direct.videoUrl || direct.fileUrl)) || '';
                 }
                 if (!videoUrl) return [];
-                return resolveAnimeOnUrl(videoUrl, t.label, t.isDub, effEpisode);
+                return resolveAnimeOnUrl(videoUrl, t.label, t.isDub, effEpisode, metaCtx);
             }));
 
             const streams = dedupeStreams(streamArrays.flat());
